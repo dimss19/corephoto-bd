@@ -49,6 +49,7 @@ uses
 constructor TDataHubView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  EdtDate.Text := FormatDateTime('yyyymmdd', Now);
 end;
 
 procedure TDataHubView.RefreshData;
@@ -98,12 +99,17 @@ begin
     ShowMessage('Site dan Date wajib diisi.');
     Exit;
   end;
-  GetAppContext.CreateNewSession(Site, Op, Dt);
-  RefreshData;
-  ShowMessage('✓ Session berhasil dibuat: ' + Site);
-  F := GetParentForm(Self);
-  if (F <> nil) and (F is TMainForm) then
-    TMainForm(F).NavigateTo('capture');
+  try
+    GetAppContext.CreateNewSession(Site, Op, Dt);
+    RefreshData;
+    ShowMessage('✓ Session berhasil dibuat: ' + Site);
+    F := GetParentForm(Self);
+    if (F <> nil) and (F is TMainForm) then
+      TMainForm(F).NavigateTo('capture');
+  except
+    on E: Exception do
+      ShowMessage('Gagal membuat session: ' + E.Message);
+  end;
 end;
 
 procedure TDataHubView.BtnOpenSessionClick(Sender: TObject);
@@ -111,23 +117,55 @@ var
   Sel: string;
   F: TCustomForm;
 begin
-  if LstSessions.ItemIndex < 0 then Exit;
+  if LstSessions.ItemIndex < 0 then
+  begin
+    ShowMessage('Pilih session dari daftar Session Archive terlebih dahulu.');
+    Exit;
+  end;
   Sel := LstSessions.Items[LstSessions.ItemIndex];
-  GetAppContext.OpenSession(Sel);
-  RefreshData;
-  F := GetParentForm(Self);
-  if (F <> nil) and (F is TMainForm) then
-    TMainForm(F).NavigateTo('capture');
+  try
+    if GetAppContext.OpenSession(Sel) then
+    begin
+      RefreshData;
+      ShowMessage('✓ Session aktif: ' + Sel);
+      F := GetParentForm(Self);
+      if (F <> nil) and (F is TMainForm) then
+        TMainForm(F).NavigateTo('capture');
+    end
+    else
+      ShowMessage('Gagal membuka session: file database tidak ditemukan.');
+  except
+    on E: Exception do
+      ShowMessage('Error membuka session: ' + E.Message);
+  end;
 end;
 
 procedure TDataHubView.BtnDeleteSessionClick(Sender: TObject);
 var
   Sel: string;
 begin
-  if LstSessions.ItemIndex < 0 then Exit;
+  if LstSessions.ItemIndex < 0 then
+  begin
+    ShowMessage('Pilih session dari daftar yang ingin dihapus.');
+    Exit;
+  end;
   Sel := LstSessions.Items[LstSessions.ItemIndex];
-  GetAppContext.DeleteSession(Sel);
-  RefreshData;
+  if MessageDlg(Format('Hapus session "%s" beserta seluruh file fotonya?', [Sel]),
+    mtConfirmation, [mbYes, mbNo], 0) = mrYes then
+  begin
+    try
+      if GetAppContext.DeleteSession(Sel) then
+      begin
+        RefreshData;
+        ShowMessage('Session berhasil dihapus.');
+      end
+      else
+        ShowMessage('Gagal menghapus session.');
+    except
+      on E: Exception do
+        ShowMessage('Error menghapus session: ' + E.Message);
+    end;
+  end;
 end;
 
 procedure TDataHubView.BtnPickDateClick(Sender: TObject);

@@ -2,6 +2,8 @@ program CorePhoto;
 
 uses
   Vcl.Forms,
+  FireDAC.VCLUI.Wait,
+  FireDAC.Comp.UI,
   CP.UI.Theme in 'src\ui\CP.UI.Theme.pas',
   CP.Ctl.Base in 'src\ui\controls\CP.Ctl.Base.pas',
   CP.Core.PyFormat in 'src\core\CP.Core.PyFormat.pas',

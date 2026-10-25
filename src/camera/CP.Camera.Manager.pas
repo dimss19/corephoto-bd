@@ -148,7 +148,7 @@ end;
 function TCPCameraManager.GetInfo: TCameraInfo;
 begin
   if FActiveAdapter <> nil then Result := FActiveAdapter.GetInfo
-  else FillChar(Result, SizeOf(Result), 0);
+  else Result := Default(TCameraInfo);
 end;
 
 function TCPCameraManager.GetCapabilities: TCameraCapabilities;

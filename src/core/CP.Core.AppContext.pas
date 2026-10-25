@@ -181,8 +181,8 @@ begin
   FreeAndNil(FTrayRepo);
   FreeAndNil(FSessionRepo);
   FreeAndNil(FSessionDB);
-  FillChar(FActiveSession, SizeOf(FActiveSession), 0);
-  FillChar(FSessionPaths, SizeOf(FSessionPaths), 0);
+  FActiveSession := Default(TSessionModel);
+  FSessionPaths := Default(TSessionPaths);
 end;
 
 function TCPAppContext.CreateNewSession(const Site, OperatorName, DateStr: string): TSessionModel;
@@ -190,20 +190,28 @@ var
   Paths: TSessionPaths;
   DB: TCPDatabaseManager;
   SRepo: TSessionRepository;
+  Bound: Boolean;
 begin
   Paths := FStorage.CreateSessionStorage(Site, DateStr);
   DB := TCPDatabaseManager.Create(Paths.DbPath);
-  SRepo := TSessionRepository.Create(DB);
+  Bound := False;
   try
-    Result.Id := ExtractFileName(Paths.SessionDir);
-    Result.Site := Site;
-    Result.DateStr := DateStr;
-    Result.OperatorName := OperatorName;
-    Result.Status := 'ACTIVE';
-    Result := SRepo.CreateSession(Result);
-    BindSession(Result, Paths, DB);
+    SRepo := TSessionRepository.Create(DB);
+    try
+      Result.Id := ExtractFileName(Paths.SessionDir);
+      Result.Site := Site;
+      Result.DateStr := DateStr;
+      Result.OperatorName := OperatorName;
+      Result.Status := 'ACTIVE';
+      Result := SRepo.CreateSession(Result);
+      BindSession(Result, Paths, DB);
+      Bound := True;
+    finally
+      SRepo.Free;
+    end;
   finally
-    SRepo.Free;
+    if not Bound then
+      DB.Free;
   end;
 end;
 
@@ -213,33 +221,41 @@ var
   DB: TCPDatabaseManager;
   SRepo: TSessionRepository;
   Sess: TSessionModel;
+  Bound: Boolean;
 begin
   Result := False;
   Paths := FStorage.GetSessionPaths(FolderName);
   if not TFile.Exists(Paths.DbPath) then Exit;
 
   DB := TCPDatabaseManager.Create(Paths.DbPath);
-  SRepo := TSessionRepository.Create(DB);
+  Bound := False;
   try
-    Sess := SRepo.GetActive;
-    if Sess.Id = '' then
-    begin
-      var AllList := SRepo.ListAll;
-      try
-        if AllList.Count > 0 then Sess := AllList[0];
-      finally
-        AllList.Free;
+    SRepo := TSessionRepository.Create(DB);
+    try
+      Sess := SRepo.GetActive;
+      if Sess.Id = '' then
+      begin
+        var AllList := SRepo.ListAll;
+        try
+          if AllList.Count > 0 then Sess := AllList[0];
+        finally
+          AllList.Free;
+        end;
       end;
+      if Sess.Id <> '' then
+      begin
+        SRepo.SetActive(Sess.Id);
+        Sess.Status := 'ACTIVE';
+        BindSession(Sess, Paths, DB);
+        Bound := True;
+        Result := True;
+      end;
+    finally
+      SRepo.Free;
     end;
-    if Sess.Id <> '' then
-    begin
-      BindSession(Sess, Paths, DB);
-      Result := True;
-    end
-    else
-      DB.Free;
   finally
-    SRepo.Free;
+    if not Bound then
+      DB.Free;
   end;
 end;
 
