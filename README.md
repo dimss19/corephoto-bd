@@ -39,5 +39,52 @@ Aplikasi Desktop Native Geological Core Photo Management System (Delphi / Object
 - `src/ui/`: VCL forms & dialogs (Capture, Review, DataHub, Settings, DatePicker, Theme).
 - `tests/`: DUnitX unit test suite (`CorePhotoTests.dpr`).
 
+## Cara Build & Kompilasi (.exe Standalone)
+
+Project ini menggunakan VCL murni dan komponen native Windows (GDI+, WIA, DirectShow, WIC) tanpa library pihak ketiga eksternal, sehingga menghasilkan single standalone `.exe` (< 10 MB).
+
+### Prasyarat
+- **Embarcadero Delphi 11 Alexandria / 12 Athens** (Community, Professional, atau Enterprise Edition).
+- *(Alternatif)* **Lazarus IDE / Free Pascal (FPC)** dengan converter proyek Delphi.
+
+---
+
+### Opsi 1: Menggunakan Delphi IDE (Paling Mudah)
+1. Buka **Embarcadero Delphi IDE**.
+2. Buka project file: `CorePhoto.dproj` melalui menu **File -> Open Project...**.
+3. Pada panel **Project Manager** (sebelah kanan):
+   - **Target Platforms**: Pilih `Windows 64-bit` (atau `Windows 32-bit`).
+   - **Build Configurations**: Pilih `Release`.
+4. Klik kanan project `CorePhoto.exe` -> pilih **Build** (atau shortcut `Shift + F9`).
+5. File executable standalone akan otomatis dibuat di folder:
+   ```text
+   bin\CorePhoto.exe
+   ```
+   *(Ukuran hasil kompilasi bersih: ~7 – 9 MB)*
+
+---
+
+### Opsi 2: Menggunakan Command Line (MSBuild / RAD Studio Command Prompt)
+1. Buka **RAD Studio Command Prompt** dari Start Menu.
+2. Masuk ke direktori project:
+   ```cmd
+   cd /d "D:\laragon\www\corephoto bd"
+   ```
+3. Jalankan MSBuild:
+   ```cmd
+   msbuild CorePhoto.dproj /p:Configuration=Release /p:Platform=Win64
+   ```
+
+---
+
+### Opsi 3: Kompresi Tambahan Menggunakan UPX (Opsional)
+Jika ingin memampatkan ukuran `.exe` lebih kecil lagi menjadi **~3.5 MB**:
+```cmd
+upx --best --lzma bin\CorePhoto.exe
+```
+
+---
+
 ## Lisensi & Hak Cipta
 Hak cipta dilindungi undang-undang.
+
