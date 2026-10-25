@@ -5,7 +5,7 @@ interface
 uses
   System.SysUtils, System.Classes, System.Variants, System.Generics.Collections,
   Data.DB,
-  FireDAC.Comp.Client,
+  FireDAC.Comp.Client, FireDAC.DApt, FireDAC.DatS,
   CP.DB.Models, CP.DB.Manager;
 
 type

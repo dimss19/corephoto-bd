@@ -9,7 +9,7 @@ uses
   FireDAC.Phys.Intf, FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async,
   FireDAC.Phys, FireDAC.Phys.SQLite, FireDAC.Phys.SQLiteDef, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Comp.Client, FireDAC.Comp.DataSet,
-  FireDAC.VCLUI.Wait, FireDAC.Comp.UI;
+  FireDAC.VCLUI.Wait, FireDAC.Comp.UI, FireDAC.DApt, FireDAC.DatS;
 
 type
   TCPDatabaseManager = class

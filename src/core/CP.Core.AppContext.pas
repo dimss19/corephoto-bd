@@ -211,7 +211,10 @@ begin
     end;
   finally
     if not Bound then
+    begin
       DB.Free;
+      FStorage.DeleteSession(ExtractFileName(Paths.SessionDir));
+    end;
   end;
 end;
 
