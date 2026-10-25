@@ -7,13 +7,14 @@ uses
 
 type
   TCPConfigManager = class
-  private
-    class var FInstance: TCPConfigManager;
-    class var FLock: TCriticalSection;
+  strict private
     FConfigPath: string;
     FRoot: TJSONObject;
     FFileLock: TCriticalSection;
     procedure EnsureDefaults;
+  private
+    class var FInstance: TCPConfigManager;
+    class var FLock: TCriticalSection;
   public
     constructor Create(const AConfigPath: string = '');
     destructor Destroy; override;

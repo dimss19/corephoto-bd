@@ -11,8 +11,7 @@ uses
 
 type
   TCPAppContext = class
-  private
-    class var FInstance: TCPAppContext;
+  strict private
     FConfig: TCPConfigManager;
     FStorage: TCPStorageManager;
     FCamera: TCPCameraManager;
@@ -34,6 +33,8 @@ type
     FLastPhoto: TPhotoModel;
     procedure BindSession(const Session: TSessionModel; const Paths: TSessionPaths; DB: TCPDatabaseManager);
     procedure AutoRestoreSession;
+  private
+    class var FInstance: TCPAppContext;
   public
     constructor Create;
     destructor Destroy; override;

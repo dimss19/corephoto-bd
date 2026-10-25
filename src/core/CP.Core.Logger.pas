@@ -7,15 +7,16 @@ uses
 
 type
   TCPLogger = class
-  private
-    class var FInstance: TCPLogger;
-    class var FLock: TCriticalSection;
+  strict private
     FLogFile: string;
     FMaxBytes: Int64;
     FBackupCount: Integer;
     FFileLock: TCriticalSection;
     procedure RotateIfNeeded;
     procedure WriteLine(const Level, Msg: string);
+  private
+    class var FInstance: TCPLogger;
+    class var FLock: TCriticalSection;
   public
     constructor Create;
     destructor Destroy; override;

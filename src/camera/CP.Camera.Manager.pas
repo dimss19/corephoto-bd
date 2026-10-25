@@ -9,12 +9,13 @@ uses
 
 type
   TCPCameraManager = class
-  private
-    class var FInstance: TCPCameraManager;
-    class var FLock: TCriticalSection;
+  strict private
     FActiveAdapter: ICameraAdapter;
     FTargetW, FTargetH: Integer;
     FResolutionMode: string;
+  private
+    class var FInstance: TCPCameraManager;
+    class var FLock: TCriticalSection;
   public
     constructor Create;
     destructor Destroy; override;
