@@ -52,7 +52,7 @@ end;
 procedure TReviewView.RefreshData;
 var
   Ctx: TCPAppContext;
-  P: TPhotoModel;
+  P, Ph: TPhotoModel;
   AllPhotos: TList<TPhotoModel>;
 begin
   Ctx := GetAppContext;
@@ -77,7 +77,7 @@ begin
     LstPhotos.Items.Clear;
     AllPhotos := Ctx.PhotoRepo.ListBySession(Ctx.ActiveSession.Id);
     try
-      for var Ph in AllPhotos do
+      for Ph in AllPhotos do
         LstPhotos.Items.Add(Format('%s — Tray %s (%.2f-%.2f m) [%s]',
           [Ph.HoleId, Ph.TrayNumber, Ph.IntervalFrom, Ph.IntervalTo, Ph.Status]));
     finally

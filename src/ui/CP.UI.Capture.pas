@@ -7,7 +7,7 @@ uses
   System.Generics.Collections,
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, Vcl.ComCtrls, Vcl.FileCtrl,
   CP.UI.Theme, CP.Core.AppContext, CP.Imaging.Crop, CP.Validation.Preflight,
-  CP.Camera.Intf, CP.Camera.Webcam;
+  CP.Camera.Intf, CP.Camera.Webcam, CP.DB.Models;
 
 type
   TCaptureView = class(TFrame)
@@ -190,7 +190,7 @@ implementation
 
 uses
   Vcl.Imaging.jpeg,
-  CP.Config.Manager, CP.DB.Models, CP.UI.MainForm;
+  CP.Config.Manager, CP.UI.MainForm;
 
 {$R *.dfm}
 
@@ -688,6 +688,7 @@ var
   Res: TPreflightResult;
   CR: TCropRegion;
   FVal, TVal: Double;
+  ErrList: TArray<string>;
 begin
   if FIsPreviewingCapture then
   begin
@@ -714,7 +715,7 @@ begin
   else
   begin
     LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop X';
-    var ErrList: TArray<string> := Res.SummaryErrors;
+    ErrList := Res.SummaryErrors;
     if Length(ErrList) > 0 then
       LblPreflightVerdict.Caption := 'CANNOT CAPTURE: ' + ErrList[0]
     else

@@ -225,6 +225,7 @@ var
   SRepo: TSessionRepository;
   Sess: TSessionModel;
   Bound: Boolean;
+  AllList: TList<TSessionModel>;
 begin
   Result := False;
   Paths := FStorage.GetSessionPaths(FolderName);
@@ -238,7 +239,7 @@ begin
       Sess := SRepo.GetActive;
       if Sess.Id = '' then
       begin
-        var AllList := SRepo.ListAll;
+        AllList := SRepo.ListAll;
         try
           if AllList.Count > 0 then Sess := AllList[0];
         finally
@@ -411,6 +412,7 @@ end;
 function TCPAppContext.TransferPhotoToServerFolder(const Photo: TPhotoModel; const ServerDir: string): Boolean;
 var
   TargetDir, SessFolder, DestJpg, DestRaw, DestThumbs: string;
+  TM: TTransferModel;
 begin
   Result := False;
   TargetDir := ServerDir;
@@ -436,7 +438,6 @@ begin
 
     if FTransferRepo <> nil then
     begin
-      var TM: TTransferModel;
       TM.PhotoId := Photo.Id;
       TM.ServerUrl := TargetDir;
       TM.Status := 'SUCCESS';
