@@ -3,7 +3,7 @@ unit CP.Storage.Manager;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.RegularExpressions,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.RegularExpressions,
   Winapi.Windows;
 
 type
@@ -105,7 +105,10 @@ begin
     Exit('unnamed');
   Clean := TRegEx.Replace(Trim(Value), '[/\:*?"<>|.]+', '_');
   Clean := TRegEx.Replace(Clean, '_+', '_');
-  Clean := TrimChar(Clean, ['_']);
+  while (Length(Clean) > 0) and (Clean[1] = '_') do
+    Delete(Clean, 1, 1);
+  while (Length(Clean) > 0) and (Clean[Length(Clean)] = '_') do
+    Delete(Clean, Length(Clean), 1);
   if Clean = '' then
     Result := 'unnamed'
   else
@@ -162,7 +165,7 @@ end;
 
 function TCPStorageManager.ListSessions: TArray<string>;
 var
-  Dirs: TStringDynArray;
+  Dirs: TArray<string>;
   I: Integer;
 begin
   if not TDirectory.Exists(FSessionsDir) then

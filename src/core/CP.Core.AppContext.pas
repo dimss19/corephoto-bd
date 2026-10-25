@@ -3,7 +3,7 @@ unit CP.Core.AppContext;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.Generics.Collections,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Generics.Collections,
   Vcl.Graphics,
   CP.Config.Manager, CP.Storage.Manager, CP.DB.Manager, CP.DB.Models,
   CP.DB.Repositories, CP.Camera.Manager, CP.Imaging.Processor,
@@ -430,7 +430,7 @@ end;
 function TCPAppContext.SyncSessionToServerFolder(const ServerDir: string; out SyncedCount: Integer): Boolean;
 var
   TargetDir, SessFolder, DestJpg, DestRaw, DestThumbs: string;
-  Files: TStringDynArray;
+  Files: TArray<string>;
   I: Integer;
 begin
   SyncedCount := 0;
