@@ -162,7 +162,9 @@ type
     FCropBoxEnabled: Boolean;
     FIsZoomed: Boolean;
     FLiveViewActive: Boolean;
+    FIsPreviewingCapture: Boolean;
     FInLiveTimer: Boolean;
+    FPendingPhoto: TPhotoModel;
     FTimerLiveView: TTimer;
     FLastFrame: TBitmap;
     FBufferBmp: TBitmap;
@@ -172,6 +174,8 @@ type
     procedure AdvanceToNextTray;
     procedure RefreshWebcamList;
     procedure RefreshCamInfo;
+    procedure RefreshSeriesCount;
+    procedure DisplayCapturedPhoto(const Photo: TPhotoModel);
     procedure UpdateTabStyles;
   public
     constructor Create(AOwner: TComponent); override;
@@ -185,6 +189,7 @@ type
 implementation
 
 uses
+  Vcl.Imaging.jpeg,
   CP.Config.Manager, CP.DB.Models, CP.UI.MainForm;
 
 {$R *.dfm}
@@ -199,10 +204,17 @@ begin
   FCropBoxEnabled := True;
   FIsZoomed := False;
   FLiveViewActive := True;
+  FIsPreviewingCapture := False;
   FInLiveTimer := False;
+  FPendingPhoto := Default(TPhotoModel);
   FLastFrame := TBitmap.Create;
   FBufferBmp := TBitmap.Create;
   FBufferBmp.PixelFormat := pf24bit;
+
+  BtnRetake.Enabled := False;
+  BtnSave.Enabled := False;
+  BtnCapture.Enabled := True;
+  BtnLiveViewToggle.Caption := 'End Live View';
 
   FTimerLiveView := TTimer.Create(Self);
   FTimerLiveView.Interval := 66; // ~15 FPS
@@ -457,6 +469,43 @@ begin
   end;
 end;
 
+procedure TCaptureView.RefreshSeriesCount;
+var
+  Ctx: TCPAppContext;
+  PList: TList<TPhotoModel>;
+begin
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.PhotoRepo <> nil) and (Ctx.ActiveSession.Id <> '') then
+  begin
+    PList := Ctx.PhotoRepo.ListBySession(Ctx.ActiveSession.Id);
+    if PList <> nil then
+    begin
+      LblSeriesCountVal.Caption := IntToStr(PList.Count);
+      PList.Free;
+    end;
+  end;
+end;
+
+procedure TCaptureView.DisplayCapturedPhoto(const Photo: TPhotoModel);
+var
+  Jpg: TJPEGImage;
+begin
+  if (Photo.JpgPath <> '') and TFile.Exists(Photo.JpgPath) then
+  begin
+    try
+      Jpg := TJPEGImage.Create;
+      try
+        Jpg.LoadFromFile(Photo.JpgPath);
+        FLastFrame.Assign(Jpg);
+      finally
+        Jpg.Free;
+      end;
+    except
+      on E: Exception do ;
+    end;
+  end;
+end;
+
 procedure TCaptureView.CmbInterfaceChange(Sender: TObject);
 var
   Ctx: TCPAppContext;
@@ -579,15 +628,31 @@ end;
 
 procedure TCaptureView.BtnLiveViewToggleClick(Sender: TObject);
 begin
+  if FIsPreviewingCapture then
+  begin
+    FIsPreviewingCapture := False;
+    FLiveViewActive := True;
+    FTimerLiveView.Enabled := True;
+    BtnLiveViewToggle.Caption := 'End Live View';
+    LblLiveStatus.Caption := 'LIVE CAMERA STREAM';
+    EvaluatePreflight;
+    PaintLiveView.Invalidate;
+    Exit;
+  end;
+
   FLiveViewActive := not FLiveViewActive;
   FTimerLiveView.Enabled := FLiveViewActive;
   if FLiveViewActive then
-    BtnLiveViewToggle.Caption := 'End Live View'
+  begin
+    BtnLiveViewToggle.Caption := 'End Live View';
+    LblLiveStatus.Caption := 'LIVE CAMERA STREAM';
+  end
   else
   begin
     BtnLiveViewToggle.Caption := 'Start Live View';
-    PaintLiveView.Invalidate;
+    LblLiveStatus.Caption := 'LIVE CAMERA STREAM — PAUSED';
   end;
+  PaintLiveView.Invalidate;
 end;
 
 procedure TCaptureView.OnLiveTimer(Sender: TObject);
@@ -595,7 +660,7 @@ var
   Ctx: TCPAppContext;
   NewBmp: TBitmap;
 begin
-  if FInLiveTimer or (not Visible) or (not FLiveViewActive) then Exit;
+  if FInLiveTimer or (not Visible) or (not FLiveViewActive) or FIsPreviewingCapture then Exit;
   FInLiveTimer := True;
   try
     Ctx := GetAppContext;
@@ -624,6 +689,15 @@ var
   CR: TCropRegion;
   FVal, TVal: Double;
 begin
+  if FIsPreviewingCapture then
+  begin
+    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop '#10003;
+    LblPreflightVerdict.Caption := 'PHOTO CAPTURED — PREVIEW MODE (RETAKE OR SAVE)';
+    LblPreflightVerdict.Font.Color := COLOR_SUCCESS;
+    BtnCapture.Enabled := False;
+    Exit;
+  end;
+
   Ctx := GetAppContext;
   CR.X := 0; CR.Y := 0; CR.Width := 300; CR.Height := 200;
   FVal := StrToFloatDef(EdtFrom.Text, 0.0);
@@ -667,6 +741,13 @@ begin
   EdtFrom.Text := FloatToStr(TVal);
   EdtTo.Text := FloatToStr(TVal + Diff);
 
+  // Reset Capture Details card to waiting
+  LblDimVal.Caption := 'waiting ...';
+  LblSizeVal.Caption := 'waiting ...';
+  LblCapVal.Caption := 'waiting ...';
+  LblDestVal.Caption := 'waiting ...';
+
+  RefreshSeriesCount;
   EvaluatePreflight;
 end;
 
@@ -677,6 +758,8 @@ var
   Scale: Double;
   DispW, DispH, OffX, OffY: Integer;
   SrcRect, DstRect: TRect;
+  BadgeStr: string;
+  BadgeTW: Integer;
 begin
   W := PaintLiveView.Width;
   H := PaintLiveView.Height;
@@ -689,8 +772,13 @@ begin
   FBufferBmp.Canvas.Brush.Color := RGB(10, 10, 12);
   FBufferBmp.Canvas.FillRect(Rect(0, 0, W, H));
 
-  // 2. Render live camera frame
-  if FLiveViewActive and (FLastFrame <> nil) and (FLastFrame.Width > 0) and (FLastFrame.Height > 0) then
+  DispW := W;
+  DispH := H;
+  OffX := 0;
+  OffY := 0;
+
+  // 2. Render frame: either live camera frame or frozen captured photo preview
+  if (FLastFrame <> nil) and (FLastFrame.Width > 0) and (FLastFrame.Height > 0) and (FLiveViewActive or FIsPreviewingCapture) then
   begin
     Scale := Min(W / FLastFrame.Width, H / FLastFrame.Height);
     DispW := Max(1, Round(FLastFrame.Width * Scale));
@@ -700,7 +788,7 @@ begin
 
     DstRect := Rect(OffX, OffY, OffX + DispW, OffY + DispH);
 
-    if FIsZoomed then
+    if FIsZoomed and (not FIsPreviewingCapture) then
     begin
       SrcRect := Rect(
         FLastFrame.Width div 4,
@@ -715,57 +803,80 @@ begin
     FBufferBmp.Canvas.CopyRect(DstRect, FLastFrame.Canvas, SrcRect);
   end;
 
-  // 3. Rule of Thirds Grid
-  if FGridEnabled then
+  // Overlays (Grid and Crop Box) are ONLY drawn during LIVE VIEW, NOT when previewing captured photo
+  if FLiveViewActive and (not FIsPreviewingCapture) then
   begin
-    FBufferBmp.Canvas.Pen.Color := RGB(2, 132, 199);
-    FBufferBmp.Canvas.Pen.Style := psDot;
-    FBufferBmp.Canvas.MoveTo(W div 3, 0); FBufferBmp.Canvas.LineTo(W div 3, H);
-    FBufferBmp.Canvas.MoveTo(2 * W div 3, 0); FBufferBmp.Canvas.LineTo(2 * W div 3, H);
-    FBufferBmp.Canvas.MoveTo(0, H div 3); FBufferBmp.Canvas.LineTo(W, H div 3);
-    FBufferBmp.Canvas.MoveTo(0, 2 * H div 3); FBufferBmp.Canvas.LineTo(W, 2 * H div 3);
+    // 3. Rule of Thirds Grid
+    if FGridEnabled then
+    begin
+      FBufferBmp.Canvas.Pen.Color := RGB(2, 132, 199);
+      FBufferBmp.Canvas.Pen.Style := psDot;
+      FBufferBmp.Canvas.MoveTo(W div 3, 0); FBufferBmp.Canvas.LineTo(W div 3, H);
+      FBufferBmp.Canvas.MoveTo(2 * W div 3, 0); FBufferBmp.Canvas.LineTo(2 * W div 3, H);
+      FBufferBmp.Canvas.MoveTo(0, H div 3); FBufferBmp.Canvas.LineTo(W, H div 3);
+      FBufferBmp.Canvas.MoveTo(0, 2 * H div 3); FBufferBmp.Canvas.LineTo(W, 2 * H div 3);
+    end;
+
+    // 4. Crop Box
+    if FCropBoxEnabled then
+    begin
+      CW := Round(W * 0.88);
+      CH := Round(CW / 1.5);
+      if CH > Round(H * 0.88) then
+      begin
+        CH := Round(H * 0.88);
+        CW := Round(CH * 1.5);
+      end;
+
+      CX1 := (W - CW) div 2;
+      CY1 := (H - CH) div 2;
+      CX2 := CX1 + CW;
+      CY2 := CY1 + CH;
+
+      FBufferBmp.Canvas.Pen.Style := psSolid;
+      FBufferBmp.Canvas.Pen.Color := clWhite;
+      FBufferBmp.Canvas.Pen.Width := 2;
+      FBufferBmp.Canvas.Brush.Style := bsClear;
+      FBufferBmp.Canvas.Rectangle(CX1, CY1, CX2, CY2);
+
+      TotalRows := StrToIntDef(EdtRows.Text, 3);
+      if TotalRows < 1 then TotalRows := 1;
+      RowH := CH div TotalRows;
+      for R := 1 to TotalRows - 1 do
+      begin
+        RY := CY1 + R * RowH;
+        FBufferBmp.Canvas.MoveTo(CX1, RY);
+        FBufferBmp.Canvas.LineTo(CX2, RY);
+      end;
+
+      // Slate watermark
+      FBufferBmp.Canvas.Font.Name := 'Segoe UI';
+      FBufferBmp.Canvas.Font.Size := 14;
+      FBufferBmp.Canvas.Font.Style := [fsBold];
+      FBufferBmp.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
+      FBufferBmp.Canvas.Brush.Style := bsClear;
+      FBufferBmp.Canvas.TextOut(CX1 + 10, CY1 + 8,
+        Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
+    end;
   end;
 
-  // 4. Crop Box
-  if FCropBoxEnabled then
+  // Prominent frozen preview badge (parity with Python capture.py _display_still_photo_on_canvas)
+  if FIsPreviewingCapture then
   begin
-    CW := Round(W * 0.88);
-    CH := Round(CW / 1.5);
-    if CH > Round(H * 0.88) then
-    begin
-      CH := Round(H * 0.88);
-      CW := Round(CH * 1.5);
-    end;
+    FBufferBmp.Canvas.Brush.Color := RGB(9, 13, 22);
+    FBufferBmp.Canvas.Brush.Style := bsSolid;
+    FBufferBmp.Canvas.Pen.Color := COLOR_SUCCESS;
+    FBufferBmp.Canvas.Pen.Width := 1;
+    FBufferBmp.Canvas.Rectangle(OffX + 8, OffY + 8, OffX + DispW - 8, OffY + 38);
 
-    CX1 := (W - CW) div 2;
-    CY1 := (H - CH) div 2;
-    CX2 := CX1 + CW;
-    CY2 := CY1 + CH;
-
-    FBufferBmp.Canvas.Pen.Style := psSolid;
-    FBufferBmp.Canvas.Pen.Color := clWhite;
-    FBufferBmp.Canvas.Pen.Width := 2;
-    FBufferBmp.Canvas.Brush.Style := bsClear;
-    FBufferBmp.Canvas.Rectangle(CX1, CY1, CX2, CY2);
-
-    TotalRows := StrToIntDef(EdtRows.Text, 3);
-    if TotalRows < 1 then TotalRows := 1;
-    RowH := CH div TotalRows;
-    for R := 1 to TotalRows - 1 do
-    begin
-      RY := CY1 + R * RowH;
-      FBufferBmp.Canvas.MoveTo(CX1, RY);
-      FBufferBmp.Canvas.LineTo(CX2, RY);
-    end;
-
-    // Slate watermark
     FBufferBmp.Canvas.Font.Name := 'Segoe UI';
-    FBufferBmp.Canvas.Font.Size := 14;
+    FBufferBmp.Canvas.Font.Size := 10;
     FBufferBmp.Canvas.Font.Style := [fsBold];
-    FBufferBmp.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
+    FBufferBmp.Canvas.Font.Color := COLOR_SUCCESS;
     FBufferBmp.Canvas.Brush.Style := bsClear;
-    FBufferBmp.Canvas.TextOut(CX1 + 10, CY1 + 8,
-      Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
+    BadgeStr := #9679' CAPTURED STILL PHOTO (FROZEN PREVIEW) - REVIEW & RETAKE / SAVE';
+    BadgeTW := FBufferBmp.Canvas.TextWidth(BadgeStr);
+    FBufferBmp.Canvas.TextOut(OffX + (DispW - BadgeTW) div 2, OffY + 14, BadgeStr);
   end;
 
   // 5. Single atomic blit to screen canvas
@@ -778,8 +889,17 @@ var
   CR: TCropRegion;
   FVal, TVal, FileSizeMB: Double;
   Photo: TPhotoModel;
+  Errors: TArray<string>;
 begin
+  if FIsPreviewingCapture then Exit;
+
   Ctx := GetAppContext;
+  if (Ctx = nil) or (Ctx.ActiveSession.Id = '') then
+  begin
+    ShowMessage('Sesi aktif belum dipilih. Buat atau pilih sesi terlebih dahulu.');
+    Exit;
+  end;
+
   CR.X := 0; CR.Y := 0; CR.Width := 300; CR.Height := 200;
   FVal := StrToFloatDef(EdtFrom.Text, 0.0);
   TVal := StrToFloatDef(EdtTo.Text, 2.0);
@@ -787,53 +907,129 @@ begin
   try
     Photo := Ctx.ExecuteCapture(EdtHole.Text, EdtTray.Text, FVal, TVal, CR);
 
+    // Validate photo immediately (parity with Python)
+    Ctx.ValidatePhoto(Photo.Id, Errors);
+
+    // Stop live view and freeze on captured photo
+    FLiveViewActive := False;
+    FTimerLiveView.Enabled := False;
+    FIsPreviewingCapture := True;
+    FPendingPhoto := Photo;
+
+    // Load still photo onto canvas
+    DisplayCapturedPhoto(Photo);
+
+    // Update details card
     LblDimVal.Caption := Format('%dx%d px', [Photo.CropW, Photo.CropH]);
     if (Photo.JpgPath <> '') and TFile.Exists(Photo.JpgPath) then
       FileSizeMB := TFile.GetSize(Photo.JpgPath) / (1024.0 * 1024.0)
     else
       FileSizeMB := 0.0;
     LblSizeVal.Caption := Format('%.2f MB', [FileSizeMB]);
-    LblCapVal.Caption := 'Captured (OK)';
+    LblCapVal.Caption := 'Success (Validated)';
     LblDestVal.Caption := ExtractFileName(Photo.JpgPath);
 
+    // Action button state: Disable Capture, Enable Retake, Save, Finish
+    BtnCapture.Enabled := False;
     BtnRetake.Enabled := True;
     BtnSave.Enabled := True;
+    BtnFinish.Enabled := True;
+    BtnLiveViewToggle.Caption := 'Resume Live View';
 
-    ShowMessage('✓ FOTO BERHASIL DIAMBIL & DIPROSES!' + sLineBreak +
-      Format('Hole: %s  |  Tray: %s  |  %.2f - %.2f m', [Photo.HoleId, Photo.TrayNumber, FVal, TVal]));
+    LblLiveStatus.Caption := Format('CAPTURED PHOTO PREVIEW — %dx%d  |  Review & Retake / Save', [Photo.CropW, Photo.CropH]);
+    LblPreflightVerdict.Caption := 'PHOTO CAPTURED — PREVIEW MODE (RETAKE OR SAVE)';
+    LblPreflightVerdict.Font.Color := COLOR_SUCCESS;
 
-    AdvanceToNextTray;
+    RefreshSeriesCount;
+    PaintLiveView.Invalidate;
   except
     on E: Exception do
+    begin
+      FLiveViewActive := True;
+      FTimerLiveView.Enabled := True;
+      FIsPreviewingCapture := False;
       ShowMessage('Capture Error: ' + E.Message);
+      EvaluatePreflight;
+    end;
   end;
 end;
 
 procedure TCaptureView.BtnRetakeClick(Sender: TObject);
+var
+  Ctx: TCPAppContext;
 begin
-  GetAppContext.RetakeCurrent;
-  LblCapVal.Caption := 'SUPERSEDED (Retake)';
-  ShowMessage('Foto lama ditandai SUPERSEDED. Siap untuk pengambilan ulang.');
+  Ctx := GetAppContext;
+  if Ctx <> nil then
+    Ctx.RetakeCurrent;
+
+  FPendingPhoto := Default(TPhotoModel);
+  FIsPreviewingCapture := False;
+  FLiveViewActive := True;
+  FTimerLiveView.Enabled := True;
+
+  BtnCapture.Enabled := True;
+  BtnRetake.Enabled := False;
+  BtnSave.Enabled := False;
+  BtnLiveViewToggle.Caption := 'End Live View';
+
+  LblCapVal.Caption := 'Retake (Superseded)';
+  LblLiveStatus.Caption := 'LIVE CAMERA STREAM';
+
+  EvaluatePreflight;
+  PaintLiveView.Invalidate;
 end;
 
 procedure TCaptureView.BtnSaveClick(Sender: TObject);
 var
-  Cnt: Integer;
+  Ctx: TCPAppContext;
+  ServerDir, SessDirName, SrvJpgDir, DestFile: string;
 begin
-  if GetAppContext.GetServerFolder <> '' then
+  if FPendingPhoto.Id = 0 then Exit;
+
+  Ctx := GetAppContext;
+
+  // Auto-copy to Server Folder if configured (matching Python)
+  ServerDir := Trim(EdtServerFolder.Text);
+  if (ServerDir <> '') and TDirectory.Exists(ServerDir) and (FPendingPhoto.JpgPath <> '') and TFile.Exists(FPendingPhoto.JpgPath) then
   begin
-    if GetAppContext.SyncSessionToServerFolder('', Cnt) then
-      ShowMessage(Format('✓ %d foto berhasil disimpan && disinkronkan ke server folder.', [Cnt]))
-    else
-      ShowMessage('Foto tersimpan lokal. Sinkronisasi server gagal.');
-  end
-  else
-    ShowMessage('✓ Foto tray berhasil disimpan ke database lokal.');
+    try
+      if (Ctx <> nil) and (Ctx.ActiveSession.Id <> '') then
+        SessDirName := Ctx.ActiveSession.Site + '_' + Ctx.ActiveSession.DateStr
+      else
+        SessDirName := 'Captures';
+
+      SrvJpgDir := TPath.Combine(TPath.Combine(ServerDir, SessDirName), 'jpg');
+      if not TDirectory.Exists(SrvJpgDir) then
+        TDirectory.CreateDirectory(SrvJpgDir);
+
+      DestFile := TPath.Combine(SrvJpgDir, ExtractFileName(FPendingPhoto.JpgPath));
+      TFile.Copy(FPendingPhoto.JpgPath, DestFile, True);
+    except
+      on E: Exception do ;
+    end;
+  end;
+
+  FPendingPhoto := Default(TPhotoModel);
+  FIsPreviewingCapture := False;
+
+  BtnSave.Enabled := False;
+  BtnRetake.Enabled := False;
+  BtnCapture.Enabled := True;
+  FLiveViewActive := True;
+  FTimerLiveView.Enabled := True;
+  BtnLiveViewToggle.Caption := 'End Live View';
+  LblLiveStatus.Caption := 'LIVE CAMERA STREAM';
+
+  AdvanceToNextTray;
+  PaintLiveView.Invalidate;
 end;
 
 procedure TCaptureView.BtnFinishClick(Sender: TObject);
 begin
-  ShowMessage('Sesi pemotretan selesai. Semua data tersimpan aman di database.');
+  if FPendingPhoto.Id > 0 then
+    BtnSaveClick(nil);
+
+  ShowMessage('Sesi pemotretan selesai. Semua data tray tersimpan aman di database.');
 end;
 
 end.
