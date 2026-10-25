@@ -1,0 +1,26 @@
+# Delphi compiler output
+*.dcu
+*.~*
+*.dcp
+*.bpl
+*.rsm
+*.map
+*.drc
+
+# Delphi IDE temporary & user files
+*.identcache
+*.stat
+*.local
+*.tvsconfig
+__history/
+__recovery/
+
+# Windows
+Thumbs.db
+Desktop.ini
+*.tmp
+
+# Build outputs
+Win32/
+Win64/
+bin/
