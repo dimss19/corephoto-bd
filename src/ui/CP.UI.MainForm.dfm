@@ -35,6 +35,7 @@ object MainForm: TMainForm
       Font.Name = 'Segoe UI'
       Font.Style = [fsBold]
       ParentFont = False
+    end
     object PnlStatusSection: TPanel
       Left = 700
       Top = 0

@@ -134,6 +134,29 @@ def test_dfm_matching():
             f"{os.path.basename(pas_path)} missing class {form_class}"
         )
 
+        # Ensure object vs end count matches exactly
+        object_count = len(re.findall(r"^\s*object\s+", dfm_content, re.MULTILINE))
+        end_count = len(re.findall(r"^\s*end\b", dfm_content, re.MULTILINE))
+        assert object_count == end_count, (
+            f"{os.path.basename(dfm_path)} unbalance: {object_count} objects vs {end_count} ends"
+        )
+
+        # Validate with Embarcadero convert.exe if available
+        convert_exe = r"C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\convert.exe"
+        if os.path.exists(convert_exe):
+            import subprocess, shutil
+            tmp_dfm = os.path.join(BASE_DIR, "temp_validate.dfm")
+            shutil.copyfile(dfm_path, tmp_dfm)
+            try:
+                res = subprocess.run([convert_exe, "-b", "-i", tmp_dfm], capture_output=True, text=True)
+                assert res.returncode == 0, (
+                    f"convert.exe failed on {os.path.basename(dfm_path)}: {res.stdout or res.stderr}"
+                )
+            finally:
+                if os.path.exists(tmp_dfm):
+                    os.remove(tmp_dfm)
+
+
 
 # -------------------------------------------------------------
 # 3. Uses Clause & Dependency Resolution
