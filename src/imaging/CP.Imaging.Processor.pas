@@ -3,7 +3,7 @@ unit CP.Imaging.Processor;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.JSON, Vcl.Graphics,
+  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.JSON, Vcl.Graphics,
   Vcl.Imaging.jpeg,
   CP.DB.Models, CP.DB.Repositories, CP.Storage.Manager, CP.Imaging.Crop,
   CP.Imaging.Raw, CP.Imaging.Thumbnail;

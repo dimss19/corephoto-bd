@@ -3,8 +3,7 @@ unit CP.Camera.WiFiDslr;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.SyncObjs, Vcl.Graphics,
-  Winapi.Winsock2,
+  Winapi.Windows, Winapi.Winsock2, System.SysUtils, System.Classes, System.IOUtils, System.SyncObjs, Vcl.Graphics,
   CP.Camera.Intf, CP.Camera.Capabilities;
 
 type

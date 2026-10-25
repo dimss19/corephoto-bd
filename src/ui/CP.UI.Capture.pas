@@ -3,7 +3,7 @@ unit CP.UI.Capture;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
+  Winapi.Windows, System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
   Vcl.ExtCtrls, Vcl.Graphics, CP.UI.Theme, CP.Core.AppContext,
   CP.Imaging.Crop, CP.Validation.Preflight;
 

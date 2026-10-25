@@ -3,7 +3,7 @@ unit CP.Camera.DirectUsb;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.SyncObjs, Vcl.Graphics,
+  Winapi.Windows, System.SysUtils, System.Classes, System.SyncObjs, Vcl.Graphics,
   Vcl.Imaging.pngimage, System.Win.ComObj,
   CP.Camera.Intf, CP.Camera.Capabilities;
 
