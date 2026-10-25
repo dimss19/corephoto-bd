@@ -3,7 +3,7 @@ unit CP.Camera.WiFiDslr;
 interface
 
 uses
-  Winapi.Windows, Winapi.Winsock2, System.SysUtils, System.Classes, System.IOUtils, System.SyncObjs, Vcl.Graphics,
+  Winapi.Windows, Winapi.Winsock2, System.SysUtils, System.Classes, System.Types, System.IOUtils, System.SyncObjs, Vcl.Graphics,
   CP.Camera.Intf, CP.Camera.Capabilities;
 
 type
@@ -113,7 +113,7 @@ begin
       Addr.sin_port := htons(Port);
       Addr.sin_addr.S_addr := inet_addr(PAnsiChar(AnsiString(IP)));
 
-      connect(Sock, Addr, SizeOf(Addr));
+      connect(Sock, TSockAddr(Addr), SizeOf(Addr));
 
       FD_ZERO(FD);
       FD_SET(Sock, FD);

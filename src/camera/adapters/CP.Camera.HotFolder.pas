@@ -3,7 +3,7 @@ unit CP.Camera.HotFolder;
 interface
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.SyncObjs, Vcl.Graphics,
+  Winapi.Windows, System.SysUtils, System.Classes, System.Types, System.IOUtils, System.SyncObjs, Vcl.Graphics,
   CP.Camera.Intf, CP.Camera.Capabilities;
 
 type
