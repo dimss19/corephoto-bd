@@ -889,6 +889,7 @@ object CaptureView: TCaptureView
             'Auto (Best Native DSLR - 18MP/24MP+)'
             '1920 x 1080 (Full HD)'
             '1280 x 720 (HD)')
+          OnChange = CmbResolutionChange
         end
         object LblMaxSize: TLabel
           Left = 8

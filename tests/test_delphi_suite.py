@@ -300,7 +300,7 @@ def test_sqlite_schema_in_db_manager():
 def test_settings_json():
     cfg_path = os.path.join(BASE_DIR, "config", "settings.json")
     assert os.path.exists(cfg_path), "Missing settings.json"
-    with open(cfg_path, "r", encoding="utf-8") as f:
+    with open(cfg_path, "r", encoding="utf-8-sig") as f:
         data = json.load(f)
     for section in ["app", "storage", "camera", "imaging", "validation", "transfer", "logging"]:
         assert section in data, f"Section '{section}' missing in settings.json"

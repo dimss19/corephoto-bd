@@ -228,6 +228,11 @@ begin
       begin
         SafeCrop.Width := Round(DecodedBmp.Width * 0.88);
         SafeCrop.Height := Round(SafeCrop.Width / 1.5);
+        if SafeCrop.Height > Round(DecodedBmp.Height * 0.88) then
+        begin
+          SafeCrop.Height := Round(DecodedBmp.Height * 0.88);
+          SafeCrop.Width := Round(SafeCrop.Height * 1.5);
+        end;
         SafeCrop.X := (DecodedBmp.Width - SafeCrop.Width) div 2;
         SafeCrop.Y := (DecodedBmp.Height - SafeCrop.Height) div 2;
       end;

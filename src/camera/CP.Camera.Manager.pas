@@ -32,6 +32,7 @@ type
     function StopLiveView: Boolean;
     function GetLiveFrame: TBitmap;
     function Capture: TCaptureResult;
+    function SetResolution(Width, Height: Integer; const Mode: string = 'custom'): Boolean;
     function TestWiFiConnection(const IP: string; Port: Integer = 15740): Boolean;
 
     property ActiveAdapter: ICameraAdapter read FActiveAdapter;
@@ -179,6 +180,22 @@ function TCPCameraManager.Capture: TCaptureResult;
 begin
   if FActiveAdapter = nil then raise Exception.Create('No camera connected.');
   Result := FActiveAdapter.Capture;
+end;
+
+function TCPCameraManager.SetResolution(Width, Height: Integer; const Mode: string): Boolean;
+begin
+  FTargetW := Width;
+  FTargetH := Height;
+  FResolutionMode := Mode;
+  if FActiveAdapter <> nil then
+  begin
+    FActiveAdapter.SetSetting('resolution_w', IntToStr(Width));
+    FActiveAdapter.SetSetting('resolution_h', IntToStr(Height));
+    FActiveAdapter.SetSetting('resolution_mode', Mode);
+  end;
+  GetConfig.SetString('camera', 'resolution_mode', Mode);
+  GetConfig.Save;
+  Result := True;
 end;
 
 function TCPCameraManager.TestWiFiConnection(const IP: string; Port: Integer): Boolean;

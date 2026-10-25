@@ -156,6 +156,7 @@ type
     procedure BtnRetakeClick(Sender: TObject);
     procedure BtnSaveClick(Sender: TObject);
     procedure BtnFinishClick(Sender: TObject);
+    procedure CmbResolutionChange(Sender: TObject);
   private
     FActiveTab: Integer; // 0 = Tray Data, 1 = Camera Settings
     FGridEnabled: Boolean;
@@ -169,6 +170,7 @@ type
     FLastFrame: TBitmap;
     FBufferBmp: TBitmap;
 
+    function GetCurrentCropRegion: TCropRegion;
     procedure OnLiveTimer(Sender: TObject);
     procedure EvaluatePreflight;
     procedure AdvanceToNextTray;
@@ -190,7 +192,7 @@ implementation
 
 uses
   Vcl.Imaging.jpeg,
-  CP.Config.Manager, CP.UI.MainForm;
+  CP.Config.Manager, CP.Camera.Manager, CP.UI.MainForm;
 
 {$R *.dfm}
 
@@ -682,6 +684,42 @@ begin
   FInLiveTimer := False;
 end;
 
+function TCaptureView.GetCurrentCropRegion: TCropRegion;
+var
+  FrameW, FrameH, CW, CH: Integer;
+begin
+  FrameW := 1920;
+  FrameH := 1080;
+  if (FLastFrame <> nil) and (FLastFrame.Width > 10) and (FLastFrame.Height > 10) then
+  begin
+    FrameW := FLastFrame.Width;
+    FrameH := FLastFrame.Height;
+  end;
+
+  if not FCropBoxEnabled then
+  begin
+    Result.X := 0;
+    Result.Y := 0;
+    Result.Width := FrameW;
+    Result.Height := FrameH;
+    Exit;
+  end;
+
+  // Standard Geological Tray Crop: 88% width, 3:2 (300:200) ratio, centered
+  CW := Round(FrameW * 0.88);
+  CH := Round(CW / 1.5);
+  if CH > Round(FrameH * 0.88) then
+  begin
+    CH := Round(FrameH * 0.88);
+    CW := Round(CH * 1.5);
+  end;
+
+  Result.Width := CW;
+  Result.Height := CH;
+  Result.X := (FrameW - CW) div 2;
+  Result.Y := (FrameH - CH) div 2;
+end;
+
 procedure TCaptureView.EvaluatePreflight;
 var
   Ctx: TCPAppContext;
@@ -700,7 +738,7 @@ begin
   end;
 
   Ctx := GetAppContext;
-  CR.X := 0; CR.Y := 0; CR.Width := 300; CR.Height := 200;
+  CR := GetCurrentCropRegion;
   FVal := StrToFloatDef(EdtFrom.Text, 0.0);
   TVal := StrToFloatDef(EdtTo.Text, 2.0);
 
@@ -901,7 +939,7 @@ begin
     Exit;
   end;
 
-  CR.X := 0; CR.Y := 0; CR.Width := 300; CR.Height := 200;
+  CR := GetCurrentCropRegion;
   FVal := StrToFloatDef(EdtFrom.Text, 0.0);
   TVal := StrToFloatDef(EdtTo.Text, 2.0);
 
@@ -1031,6 +1069,19 @@ begin
     BtnSaveClick(nil);
 
   ShowMessage('Sesi pemotretan selesai. Semua data tray tersimpan aman di database.');
+end;
+
+procedure TCaptureView.CmbResolutionChange(Sender: TObject);
+var
+  Choice: string;
+begin
+  Choice := CmbResolution.Text;
+  if Pos('1920 x 1080', Choice) > 0 then
+    GetCameraManager.SetResolution(1920, 1080, '1080p')
+  else if Pos('1280 x 720', Choice) > 0 then
+    GetCameraManager.SetResolution(1280, 720, '720p')
+  else
+    GetCameraManager.SetResolution(5184, 3456, 'best_native');
 end;
 
 end.
