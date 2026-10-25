@@ -50,7 +50,7 @@ object MainForm: TMainForm
         Top = 13
         Width = 84
         Height = 15
-        Caption = '● Disconnected'
+        Caption = 'Disconnected'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = 2500316
         Font.Height = -12
@@ -79,7 +79,7 @@ object MainForm: TMainForm
         Top = 8
         Width = 140
         Height = 28
-        Caption = '⚙ Camera Settings'
+        Caption = 'Camera Settings'
         TabOrder = 1
         OnClick = BtnHeaderSettingsClick
       end
