@@ -24,9 +24,9 @@
       5184,
       3456
     ],
-    "resolution_mode": "best_native",
     "fps": 30,
-    "device_id": "0"
+    "device_id": "0",
+    "resolution_mode": "1080p"
   },
   "imaging": {
     "crop_width": 300,

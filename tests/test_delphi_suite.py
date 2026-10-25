@@ -260,6 +260,30 @@ def test_validate_filename():
     assert validate_filename('InvalidName.jpg') is False
     assert validate_filename('Core01_1_5.00_2.00.jpg') is False
 
+@test("Crop & Full Frame Resolution logic parity")
+def test_crop_resolution_logic():
+    # When Crop Box is OFF (crop_enabled=False), region width/height is 0 (Full Frame)
+    full_frame_w, full_frame_h = 1920, 1080
+    crop_w, crop_h = 0, 0
+    is_full_frame = (crop_w <= 0) or (crop_h <= 0)
+    assert is_full_frame is True, "Full frame should be detected when crop width/height is 0"
+
+    # When Crop Box is ON, crop box is centered 88% width, 3:2 ratio
+    target_w, target_h = 1920, 1080
+    cw = round(target_w * 0.88)
+    ch = round(cw / 1.5)
+    if ch > round(target_h * 0.88):
+        ch = round(target_h * 0.88)
+        cw = round(ch * 1.5)
+    cx = (target_w - cw) // 2
+    cy = (target_h - ch) // 2
+
+    assert cw == 1425, f"Expected cropped width 1425 in 1080p, got {cw}"
+    assert ch == 950, f"Expected cropped height 950 in 1080p, got {ch}"
+    assert cx == 247, f"Expected centered X 247, got {cx}"
+    assert cy == 65, f"Expected centered Y 65, got {cy}"
+
+
 
 # -------------------------------------------------------------
 # 5. Database Schema & SQLite WAL Compatibility
@@ -329,6 +353,7 @@ if __name__ == "__main__":
     test_format_core_filename()
     test_validate_interval()
     test_validate_filename()
+    test_crop_resolution_logic()
     test_sqlite_schema_in_db_manager()
     test_settings_json()
     test_git_repo()

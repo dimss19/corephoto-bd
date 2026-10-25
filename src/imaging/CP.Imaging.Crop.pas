@@ -3,7 +3,7 @@ unit CP.Imaging.Crop;
 interface
 
 uses
-  System.SysUtils, System.Types, Vcl.Graphics;
+  Winapi.Windows, System.SysUtils, System.Types, Vcl.Graphics;
 
 type
   TCropRegion = record
@@ -53,8 +53,13 @@ begin
   if (TargetW > 0) and (TargetH > 0) then
   begin
     Result.SetSize(TargetW, TargetH);
-    DstRect := Rect(0, 0, TargetW, TargetH);
-    Result.Canvas.StretchDraw(DstRect, SourceBmp);
+    SetStretchBltMode(Result.Canvas.Handle, HALFTONE);
+    SetBrushOrgEx(Result.Canvas.Handle, 0, 0, nil);
+    StretchBlt(
+      Result.Canvas.Handle, 0, 0, TargetW, TargetH,
+      SourceBmp.Canvas.Handle, Safe.X, Safe.Y, Safe.Width, Safe.Height,
+      SRCCOPY
+    );
   end
   else
   begin

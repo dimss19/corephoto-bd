@@ -203,7 +203,7 @@ begin
   PnlCenter.DoubleBuffered := True;
   FActiveTab := 0;
   FGridEnabled := True;
-  FCropBoxEnabled := True;
+  FCropBoxEnabled := False;
   FIsZoomed := False;
   FLiveViewActive := True;
   FIsPreviewingCapture := False;
@@ -216,6 +216,7 @@ begin
   BtnRetake.Enabled := False;
   BtnSave.Enabled := False;
   BtnCapture.Enabled := True;
+  BtnCropToggle.Caption := 'Crop Box: OFF';
   BtnLiveViewToggle.Caption := 'End Live View';
 
   FTimerLiveView := TTimer.Create(Self);
@@ -567,6 +568,7 @@ begin
     BtnCropToggle.Caption := 'Crop Box: ON'
   else
     BtnCropToggle.Caption := 'Crop Box: OFF';
+  EvaluatePreflight;
   PaintLiveView.Invalidate;
 end;
 
@@ -688,38 +690,43 @@ end;
 
 function TCaptureView.GetCurrentCropRegion: TCropRegion;
 var
-  FrameW, FrameH, CW, CH: Integer;
+  TargetW, TargetH, CW, CH: Integer;
 begin
-  FrameW := 1920;
-  FrameH := 1080;
-  if (FLastFrame <> nil) and (FLastFrame.Width > 10) and (FLastFrame.Height > 10) then
-  begin
-    FrameW := FLastFrame.Width;
-    FrameH := FLastFrame.Height;
-  end;
-
   if not FCropBoxEnabled then
   begin
     Result.X := 0;
     Result.Y := 0;
-    Result.Width := FrameW;
-    Result.Height := FrameH;
+    Result.Width := 0;
+    Result.Height := 0;
     Exit;
   end;
 
-  // Standard Geological Tray Crop: 88% width, 3:2 (300:200) ratio, centered
-  CW := Round(FrameW * 0.88);
-  CH := Round(CW / 1.5);
-  if CH > Round(FrameH * 0.88) then
+  TargetW := 1920;
+  TargetH := 1080;
+  if Pos('1280 x 720', CmbResolution.Text) > 0 then
   begin
-    CH := Round(FrameH * 0.88);
+    TargetW := 1280;
+    TargetH := 720;
+  end
+  else if Pos('Auto', CmbResolution.Text) > 0 then
+  begin
+    TargetW := 5184;
+    TargetH := 3456;
+  end;
+
+  // Standard Geological Tray Crop: 88% width, 3:2 (300:200) ratio, centered
+  CW := Round(TargetW * 0.88);
+  CH := Round(CW / 1.5);
+  if CH > Round(TargetH * 0.88) then
+  begin
+    CH := Round(TargetH * 0.88);
     CW := Round(CH * 1.5);
   end;
 
   Result.Width := CW;
   Result.Height := CH;
-  Result.X := (FrameW - CW) div 2;
-  Result.Y := (FrameH - CH) div 2;
+  Result.X := (TargetW - CW) div 2;
+  Result.Y := (TargetH - CH) div 2;
 end;
 
 procedure TCaptureView.EvaluatePreflight;
@@ -729,10 +736,16 @@ var
   CR: TCropRegion;
   FVal, TVal: Double;
   ErrList: TArray<string>;
+  CropTag: string;
 begin
+  if FCropBoxEnabled then
+    CropTag := 'Crop [Box] '#10003
+  else
+    CropTag := 'Crop [Full] '#10003;
+
   if FIsPreviewingCapture then
   begin
-    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop '#10003;
+    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  ' + CropTag;
     LblPreflightVerdict.Caption := 'PHOTO CAPTURED — PREVIEW MODE (RETAKE OR SAVE)';
     LblPreflightVerdict.Font.Color := COLOR_SUCCESS;
     BtnCapture.Enabled := False;
@@ -747,7 +760,7 @@ begin
   Res := Ctx.RunPreflight(EdtHole.Text, EdtTray.Text, FVal, TVal, CR);
   if Res.IsReady then
   begin
-    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop '#10003;
+    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  ' + CropTag;
     LblPreflightVerdict.Caption := 'READY TO CAPTURE: All pre-flight checklist items verified.';
     LblPreflightVerdict.Font.Color := COLOR_SUCCESS;
     BtnCapture.Enabled := True;
@@ -852,25 +865,25 @@ begin
     begin
       FBufferBmp.Canvas.Pen.Color := RGB(2, 132, 199);
       FBufferBmp.Canvas.Pen.Style := psDot;
-      FBufferBmp.Canvas.MoveTo(W div 3, 0); FBufferBmp.Canvas.LineTo(W div 3, H);
-      FBufferBmp.Canvas.MoveTo(2 * W div 3, 0); FBufferBmp.Canvas.LineTo(2 * W div 3, H);
-      FBufferBmp.Canvas.MoveTo(0, H div 3); FBufferBmp.Canvas.LineTo(W, H div 3);
-      FBufferBmp.Canvas.MoveTo(0, 2 * H div 3); FBufferBmp.Canvas.LineTo(W, 2 * H div 3);
+      FBufferBmp.Canvas.MoveTo(OffX + DispW div 3, OffY); FBufferBmp.Canvas.LineTo(OffX + DispW div 3, OffY + DispH);
+      FBufferBmp.Canvas.MoveTo(OffX + 2 * DispW div 3, OffY); FBufferBmp.Canvas.LineTo(OffX + 2 * DispW div 3, OffY + DispH);
+      FBufferBmp.Canvas.MoveTo(OffX, OffY + DispH div 3); FBufferBmp.Canvas.LineTo(OffX + DispW, OffY + DispH div 3);
+      FBufferBmp.Canvas.MoveTo(OffX, OffY + 2 * DispH div 3); FBufferBmp.Canvas.LineTo(OffX + DispW, OffY + 2 * DispH div 3);
     end;
 
     // 4. Crop Box
     if FCropBoxEnabled then
     begin
-      CW := Round(W * 0.88);
+      CW := Round(DispW * 0.88);
       CH := Round(CW / 1.5);
-      if CH > Round(H * 0.88) then
+      if CH > Round(DispH * 0.88) then
       begin
-        CH := Round(H * 0.88);
+        CH := Round(DispH * 0.88);
         CW := Round(CH * 1.5);
       end;
 
-      CX1 := (W - CW) div 2;
-      CY1 := (H - CH) div 2;
+      CX1 := OffX + (DispW - CW) div 2;
+      CY1 := OffY + (DispH - CH) div 2;
       CX2 := CX1 + CW;
       CY2 := CY1 + CH;
 
@@ -1091,7 +1104,7 @@ begin
   end
   else
   begin
-    W := 1920; H := 1080;
+    W := 5184; H := 3456;
     GetCameraManager.SetResolution(5184, 3456, 'best_native');
   end;
 

@@ -968,7 +968,7 @@ object CaptureView: TCaptureView
         Width = 95
         Height = 28
         Anchors = [akTop, akRight]
-        Caption = 'Crop Box: ON'
+        Caption = 'Crop Box: OFF'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
         Font.Height = -11

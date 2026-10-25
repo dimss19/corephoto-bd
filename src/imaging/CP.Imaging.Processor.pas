@@ -269,19 +269,24 @@ begin
     try
       // 4. Apply Tray Crop
       SafeCrop := CropRegion;
-      if (SafeCrop.Width <= 10) or (SafeCrop.Height <= 10) then
+      if (SafeCrop.Width <= 0) or (SafeCrop.Height <= 0) or
+         ((SafeCrop.X = 0) and (SafeCrop.Y = 0) and (SafeCrop.Width >= DecodedBmp.Width) and (SafeCrop.Height >= DecodedBmp.Height)) then
       begin
-        SafeCrop.Width := Round(DecodedBmp.Width * 0.88);
-        SafeCrop.Height := Round(SafeCrop.Width / 1.5);
-        if SafeCrop.Height > Round(DecodedBmp.Height * 0.88) then
-        begin
-          SafeCrop.Height := Round(DecodedBmp.Height * 0.88);
-          SafeCrop.Width := Round(SafeCrop.Height * 1.5);
-        end;
-        SafeCrop.X := (DecodedBmp.Width - SafeCrop.Width) div 2;
-        SafeCrop.Y := (DecodedBmp.Height - SafeCrop.Height) div 2;
+        // Full Frame — No cropping! Keep complete camera frame
+        CroppedBmp := TBitmap.Create;
+        CroppedBmp.PixelFormat := pf24bit;
+        CroppedBmp.SetSize(DecodedBmp.Width, DecodedBmp.Height);
+        CroppedBmp.Canvas.Draw(0, 0, DecodedBmp);
+        SafeCrop.X := 0;
+        SafeCrop.Y := 0;
+        SafeCrop.Width := DecodedBmp.Width;
+        SafeCrop.Height := DecodedBmp.Height;
+      end
+      else
+      begin
+        // Tray Crop — crop framed region and ensure high resolution output
+        CroppedBmp := SafeCrop.ApplyToBitmap(DecodedBmp, DecodedBmp.Width, DecodedBmp.Height);
       end;
-      CroppedBmp := SafeCrop.ApplyToBitmap(DecodedBmp);
       try
         // 5. Add Geological metadata slate banner
         SlatedBmp := AddMetadataSlateBanner(

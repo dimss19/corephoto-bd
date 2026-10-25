@@ -512,13 +512,19 @@ begin
     Bmp := GenerateStandbyFrame(FTargetW, FTargetH);
 
   try
-    // Ensure capture output matches target resolution (scaling up if hardware stream is lower)
+    // Ensure capture output matches target resolution (scaling up with high-quality Halftone if hardware stream is lower)
     if (FTargetW > 0) and (FTargetH > 0) and ((Bmp.Width <> FTargetW) or (Bmp.Height <> FTargetH)) then
     begin
       ScaledBmp := TBitmap.Create;
       ScaledBmp.PixelFormat := pf24bit;
       ScaledBmp.SetSize(FTargetW, FTargetH);
-      ScaledBmp.Canvas.StretchDraw(Rect(0, 0, FTargetW, FTargetH), Bmp);
+      SetStretchBltMode(ScaledBmp.Canvas.Handle, HALFTONE);
+      SetBrushOrgEx(ScaledBmp.Canvas.Handle, 0, 0, nil);
+      StretchBlt(
+        ScaledBmp.Canvas.Handle, 0, 0, FTargetW, FTargetH,
+        Bmp.Canvas.Handle, 0, 0, Bmp.Width, Bmp.Height,
+        SRCCOPY
+      );
       Bmp.Free;
       Bmp := ScaledBmp;
     end;
@@ -544,10 +550,9 @@ begin
     Result.Height := Bmp.Height;
     Result.CameraModel := FInfo.Model;
     Result.CameraSerial := FInfo.SerialNumber;
-    Result.PreviewBmp := Bmp;
-  except
+    Result.PreviewBmp := nil;
+  finally
     Bmp.Free;
-    raise;
   end;
   FState := csReady;
 end;
@@ -555,7 +560,6 @@ end;
 function TWebcamAdapter.SetSetting(const Key, Value: string): Boolean;
 var
   W, H: Integer;
-  DevId: string;
   Parts: TArray<string>;
 begin
   Result := True;
@@ -570,12 +574,6 @@ begin
       begin
         FTargetW := W;
         FTargetH := H;
-        if FState in [csReady, csStreaming] then
-        begin
-          DevId := FDeviceId;
-          Disconnect;
-          Connect(DevId);
-        end;
       end;
     end;
   end
@@ -587,16 +585,7 @@ begin
   else if Key = 'resolution_h' then
   begin
     H := StrToIntDef(Value, 1080);
-    if H > 0 then
-    begin
-      FTargetH := H;
-      if FState in [csReady, csStreaming] then
-      begin
-        DevId := FDeviceId;
-        Disconnect;
-        Connect(DevId);
-      end;
-    end;
+    if H > 0 then FTargetH := H;
   end;
 end;
 
