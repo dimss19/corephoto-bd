@@ -11,10 +11,6 @@ type
   TMainForm = class(TForm)
     PnlTopBar: TPanel;
     LblBrand: TLabel;
-    BtnNavCapture: TButton;
-    BtnNavReview: TButton;
-    BtnNavData: TButton;
-    BtnNavSettings: TButton;
     PnlStatusSection: TPanel;
     BtnHeaderSession: TButton;
     LblHeaderCamera: TLabel;
@@ -27,10 +23,6 @@ type
     procedure FormCreate(Sender: TObject);
     procedure BtnHeaderSessionClick(Sender: TObject);
     procedure BtnHeaderSettingsClick(Sender: TObject);
-    procedure BtnNavCaptureClick(Sender: TObject);
-    procedure BtnNavReviewClick(Sender: TObject);
-    procedure BtnNavDataClick(Sender: TObject);
-    procedure BtnNavSettingsClick(Sender: TObject);
   private
     FCaptureView: TCaptureView;
     FReviewView: TReviewView;
@@ -159,30 +151,9 @@ end;
 
 procedure TMainForm.BtnHeaderSettingsClick(Sender: TObject);
 begin
-  if Assigned(FSettingsView) and FSettingsView.Visible then
-    NavigateTo('capture')
-  else
-    NavigateTo('settings');
-end;
-
-procedure TMainForm.BtnNavCaptureClick(Sender: TObject);
-begin
   NavigateTo('capture');
-end;
-
-procedure TMainForm.BtnNavReviewClick(Sender: TObject);
-begin
-  NavigateTo('review');
-end;
-
-procedure TMainForm.BtnNavDataClick(Sender: TObject);
-begin
-  NavigateTo('data');
-end;
-
-procedure TMainForm.BtnNavSettingsClick(Sender: TObject);
-begin
-  NavigateTo('settings');
+  if Assigned(FCaptureView) then
+    FCaptureView.ToggleCameraSettingsTab;
 end;
 
 end.

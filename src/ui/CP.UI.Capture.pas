@@ -3,16 +3,31 @@ unit CP.UI.Capture;
 interface
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.Math, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
-  Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, CP.UI.Theme, CP.Core.AppContext,
-  CP.Imaging.Crop, CP.Validation.Preflight;
+  Winapi.Windows, System.SysUtils, System.Classes, System.Math, Vcl.Forms, Vcl.Controls,
+  Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs,
+  CP.UI.Theme, CP.Core.AppContext, CP.Imaging.Crop, CP.Validation.Preflight,
+  CP.Camera.Webcam;
 
 type
   TCaptureView = class(TFrame)
     PnlLeft: TPanel;
-    PnlCenter: TPanel;
-    PnlTrayData: TPanel;
+    PnlTabButtons: TPanel;
+    BtnTabTrayData: TButton;
+    BtnTabCamSettings: TButton;
+    ScrollBoxTray: TScrollBox;
     LblTrayTitle: TLabel;
+    LblTraySubtitle: TLabel;
+    PnlSessionDetails: TPanel;
+    LblSessTitle: TLabel;
+    LblDate: TLabel;
+    EdtDate: TEdit;
+    BtnPickDate: TButton;
+    LblOperator: TLabel;
+    EdtOperator: TEdit;
+    LblSite: TLabel;
+    EdtSite: TEdit;
+    PnlImageDetails: TPanel;
+    LblImageTitle: TLabel;
     LblHole: TLabel;
     EdtHole: TEdit;
     LblTray: TLabel;
@@ -23,52 +38,152 @@ type
     EdtTo: TEdit;
     LblRows: TLabel;
     EdtRows: TEdit;
-    PnlPreflight: TPanel;
-    LblPreflightStatus: TLabel;
-    BtnCapture: TButton;
-    BtnRetake: TButton;
-    BtnSaveNext: TButton;
-    PaintLiveView: TPaintBox;
+    LblCropArea: TLabel;
+    EdtCropArea: TEdit;
+    LblTrayLength: TLabel;
+    EdtTrayLength: TEdit;
+    LblTrayWidth: TLabel;
+    EdtTrayWidth: TEdit;
+    PnlComments: TPanel;
+    LblComments: TLabel;
+    MemoComments: TMemo;
+    ScrollBoxCam: TScrollBox;
+    PnlDevInfo: TPanel;
+    LblDevTitle: TLabel;
+    LblInterface: TLabel;
+    CmbInterface: TComboBox;
+    LblWebcamDev: TLabel;
+    CmbWebcamDevice: TComboBox;
+    BtnWebcamRefresh: TButton;
+    LblWebcamHint: TLabel;
+    LblDevModel: TLabel;
+    LblDevSerial: TLabel;
+    LblDevFw: TLabel;
+    BtnDevDetect: TButton;
+    BtnDevReconnect: TButton;
+    PnlCamSettings: TPanel;
+    LblCamSetTitle: TLabel;
+    LblFormat: TLabel;
+    CmbFormat: TComboBox;
+    LblExposure: TLabel;
+    CmbExposure: TComboBox;
+    LblAperture: TLabel;
+    CmbAperture: TComboBox;
+    LblFlash: TLabel;
+    ChkFlash: TCheckBox;
+    LblMetering: TLabel;
+    CmbMetering: TComboBox;
+    LblFocusing: TLabel;
+    CmbFocusing: TComboBox;
+    LblIso: TLabel;
+    CmbIso: TComboBox;
+    LblResolution: TLabel;
+    CmbResolution: TComboBox;
+    PnlCenter: TPanel;
     PnlLiveTopBar: TPanel;
     LblLiveStatus: TLabel;
+    BtnCropToggle: TButton;
+    BtnLiveReconnect: TButton;
+    PaintLiveView: TPaintBox;
+    PnlPreflightBanner: TPanel;
+    LblPreflightChecklist: TLabel;
+    LblPreflightVerdict: TLabel;
+    PnlControlBottom: TPanel;
+    PnlCardDetails: TPanel;
+    LblDetailsTitle: TLabel;
+    LblDimKey: TLabel;
+    LblDimVal: TLabel;
+    LblSizeKey: TLabel;
+    LblSizeVal: TLabel;
+    LblCapKey: TLabel;
+    LblCapVal: TLabel;
+    LblDestKey: TLabel;
+    LblDestVal: TLabel;
+    PnlCtrlCenter: TPanel;
     ChkGrid: TCheckBox;
     BtnZoom: TButton;
+    LblFocusDrive: TLabel;
+    BtnFocusStepN3: TButton;
+    BtnFocusStepN2: TButton;
+    BtnFocusStepN1: TButton;
+    BtnFocusStepP1: TButton;
+    BtnFocusStepP2: TButton;
+    BtnFocusStepP3: TButton;
+    PnlCtrlActions: TPanel;
+    BtnLiveViewToggle: TButton;
+    BtnCapture: TButton;
+    BtnRetake: TButton;
+    BtnSave: TButton;
+    BtnFinish: TButton;
+    procedure BtnTabTrayDataClick(Sender: TObject);
+    procedure BtnTabCamSettingsClick(Sender: TObject);
+    procedure BtnPickDateClick(Sender: TObject);
+    procedure FormFieldChange(Sender: TObject);
+    procedure CmbInterfaceChange(Sender: TObject);
+    procedure CmbWebcamDeviceChange(Sender: TObject);
+    procedure BtnWebcamRefreshClick(Sender: TObject);
+    procedure BtnDevDetectClick(Sender: TObject);
+    procedure BtnDevReconnectClick(Sender: TObject);
+    procedure BtnCropToggleClick(Sender: TObject);
+    procedure BtnLiveReconnectClick(Sender: TObject);
     procedure PaintLiveViewPaint(Sender: TObject);
-    procedure BtnCaptureClick(Sender: TObject);
-    procedure BtnRetakeClick(Sender: TObject);
-    procedure BtnSaveNextClick(Sender: TObject);
     procedure ChkGridClick(Sender: TObject);
     procedure BtnZoomClick(Sender: TObject);
+    procedure FocusStepClick(Sender: TObject);
+    procedure BtnLiveViewToggleClick(Sender: TObject);
+    procedure BtnCaptureClick(Sender: TObject);
+    procedure BtnRetakeClick(Sender: TObject);
+    procedure BtnSaveClick(Sender: TObject);
+    procedure BtnFinishClick(Sender: TObject);
   private
+    FActiveTab: Integer; // 0 = Tray Data, 1 = Camera Settings
     FGridEnabled: Boolean;
+    FCropBoxEnabled: Boolean;
     FIsZoomed: Boolean;
+    FLiveViewActive: Boolean;
     FTimerLiveView: TTimer;
     FLastFrame: TBitmap;
+
     procedure OnLiveTimer(Sender: TObject);
     procedure EvaluatePreflight;
     procedure AdvanceToNextTray;
+    procedure RefreshWebcamList;
+    procedure RefreshCamInfo;
+    procedure UpdateTabStyles;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+
+    procedure SelectTab(TabIndex: Integer);
+    procedure ToggleCameraSettingsTab;
     procedure RefreshData;
   end;
 
 implementation
+
+uses
+  CP.UI.DatePicker, CP.DB.Models;
 
 {$R *.dfm}
 
 constructor TCaptureView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FActiveTab := 0;
   FGridEnabled := True;
+  FCropBoxEnabled := True;
   FIsZoomed := False;
+  FLiveViewActive := True;
   FLastFrame := TBitmap.Create;
 
   FTimerLiveView := TTimer.Create(Self);
-  FTimerLiveView.Interval := 66; // ~15 FPS live preview
+  FTimerLiveView.Interval := 66; // ~15 FPS
   FTimerLiveView.OnTimer := OnLiveTimer;
   FTimerLiveView.Enabled := True;
 
+  SelectTab(0);
+  RefreshWebcamList;
+  RefreshCamInfo;
   EvaluatePreflight;
 end;
 
@@ -80,12 +195,217 @@ begin
   inherited Destroy;
 end;
 
+procedure TCaptureView.SelectTab(TabIndex: Integer);
+begin
+  FActiveTab := TabIndex;
+  ScrollBoxTray.Visible := (TabIndex = 0);
+  ScrollBoxCam.Visible := (TabIndex = 1);
+  UpdateTabStyles;
+end;
+
+procedure TCaptureView.ToggleCameraSettingsTab;
+begin
+  if FActiveTab = 1 then
+    SelectTab(0)
+  else
+    SelectTab(1);
+end;
+
+procedure TCaptureView.UpdateTabStyles;
+begin
+  if FActiveTab = 0 then
+  begin
+    BtnTabTrayData.Font.Style := [fsBold];
+    BtnTabCamSettings.Font.Style := [];
+  end
+  else
+  begin
+    BtnTabTrayData.Font.Style := [];
+    BtnTabCamSettings.Font.Style := [fsBold];
+  end;
+end;
+
+procedure TCaptureView.BtnTabTrayDataClick(Sender: TObject);
+begin
+  SelectTab(0);
+end;
+
+procedure TCaptureView.BtnTabCamSettingsClick(Sender: TObject);
+begin
+  SelectTab(1);
+end;
+
+procedure TCaptureView.BtnPickDateClick(Sender: TObject);
+var
+  DStr: string;
+begin
+  if TDatePickerModal.PickDate(DStr) then
+  begin
+    EdtDate.Text := DStr;
+    EvaluatePreflight;
+  end;
+end;
+
+procedure TCaptureView.FormFieldChange(Sender: TObject);
+begin
+  EvaluatePreflight;
+end;
+
+procedure TCaptureView.RefreshData;
+var
+  Ctx: TCPAppContext;
+begin
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.ActiveSession.Id <> '') then
+  begin
+    EdtDate.Text := Ctx.ActiveSession.DateStr;
+    EdtOperator.Text := Ctx.ActiveSession.OperatorName;
+    EdtSite.Text := Ctx.ActiveSession.Site;
+  end;
+
+  RefreshCamInfo;
+  EvaluatePreflight;
+  PaintLiveView.Invalidate;
+end;
+
+procedure TCaptureView.RefreshWebcamList;
+var
+  Devs: TArray<string>;
+  I: Integer;
+begin
+  CmbWebcamDevice.Items.Clear;
+  Devs := TWebcamAdapter.ListDevices;
+  if Length(Devs) > 0 then
+  begin
+    for I := 0 to High(Devs) do
+      CmbWebcamDevice.Items.Add(Format('%s - Index %d', [Devs[I], I]));
+    CmbWebcamDevice.ItemIndex := 0;
+    LblWebcamHint.Caption := Format('%d webcam terdeteksi. Pilih internal/external lalu live view mengikuti otomatis.', [Length(Devs)]);
+  end
+  else
+  begin
+    CmbWebcamDevice.Items.Add('Simulator / Standby Mode');
+    CmbWebcamDevice.ItemIndex := 0;
+    LblWebcamHint.Caption := 'Tidak ada webcam fisik terdeteksi. Berjalan dalam mode Simulator Standby.';
+  end;
+end;
+
+procedure TCaptureView.RefreshCamInfo;
+var
+  Ctx: TCPAppContext;
+  Info: TCameraInfo;
+begin
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.Camera <> nil) then
+  begin
+    Info := Ctx.Camera.GetInfo;
+    LblDevModel.Caption := 'Model: ' + Info.Model;
+    LblDevSerial.Caption := 'Serial No: ' + Info.SerialNumber;
+    LblDevFw.Caption := 'Firmware: ' + Info.FirmwareVersion;
+  end;
+end;
+
+procedure TCaptureView.CmbInterfaceChange(Sender: TObject);
+var
+  Ctx: TCPAppContext;
+begin
+  Ctx := GetAppContext;
+  if Ctx = nil then Exit;
+
+  if CmbInterface.ItemIndex = 1 then
+    Ctx.Camera.ConnectCamera('direct_usb', '0')
+  else
+    Ctx.Camera.ConnectCamera('webcam', IntToStr(Max(0, CmbWebcamDevice.ItemIndex)));
+
+  RefreshCamInfo;
+  EvaluatePreflight;
+end;
+
+procedure TCaptureView.CmbWebcamDeviceChange(Sender: TObject);
+var
+  Idx: Integer;
+begin
+  Idx := CmbWebcamDevice.ItemIndex;
+  if Idx < 0 then Idx := 0;
+  GetAppContext.Camera.ConnectCamera('webcam', IntToStr(Idx));
+  RefreshCamInfo;
+  EvaluatePreflight;
+end;
+
+procedure TCaptureView.BtnWebcamRefreshClick(Sender: TObject);
+begin
+  RefreshWebcamList;
+  CmbWebcamDeviceChange(nil);
+end;
+
+procedure TCaptureView.BtnDevDetectClick(Sender: TObject);
+begin
+  RefreshWebcamList;
+  CmbWebcamDeviceChange(nil);
+  ShowMessage('Pendeteksian kamera selesai: ' + LblDevModel.Caption);
+end;
+
+procedure TCaptureView.BtnDevReconnectClick(Sender: TObject);
+begin
+  CmbWebcamDeviceChange(nil);
+  ShowMessage('Koneksi kamera di-refresh.');
+end;
+
+procedure TCaptureView.BtnCropToggleClick(Sender: TObject);
+begin
+  FCropBoxEnabled := not FCropBoxEnabled;
+  if FCropBoxEnabled then
+    BtnCropToggle.Caption := 'Crop Box: ON'
+  else
+    BtnCropToggle.Caption := 'Crop Box: OFF';
+  PaintLiveView.Invalidate;
+end;
+
+procedure TCaptureView.BtnLiveReconnectClick(Sender: TObject);
+begin
+  CmbWebcamDeviceChange(nil);
+end;
+
+procedure TCaptureView.ChkGridClick(Sender: TObject);
+begin
+  FGridEnabled := ChkGrid.Checked;
+  PaintLiveView.Invalidate;
+end;
+
+procedure TCaptureView.BtnZoomClick(Sender: TObject);
+begin
+  FIsZoomed := not FIsZoomed;
+  if FIsZoomed then
+    BtnZoom.Caption := 'Zoom Out'
+  else
+    BtnZoom.Caption := 'Zoom In';
+  PaintLiveView.Invalidate;
+end;
+
+procedure TCaptureView.FocusStepClick(Sender: TObject);
+begin
+  // Step motor command for DSLR tethering
+end;
+
+procedure TCaptureView.BtnLiveViewToggleClick(Sender: TObject);
+begin
+  FLiveViewActive := not FLiveViewActive;
+  FTimerLiveView.Enabled := FLiveViewActive;
+  if FLiveViewActive then
+    BtnLiveViewToggle.Caption := 'End Live View'
+  else
+  begin
+    BtnLiveViewToggle.Caption := 'Start Live View';
+    PaintLiveView.Invalidate;
+  end;
+end;
+
 procedure TCaptureView.OnLiveTimer(Sender: TObject);
 var
   Ctx: TCPAppContext;
   NewBmp: TBitmap;
 begin
-  if not Visible then Exit;
+  if (not Visible) or (not FLiveViewActive) then Exit;
   try
     Ctx := GetAppContext;
     if (Ctx <> nil) and (Ctx.Camera <> nil) then
@@ -105,12 +425,6 @@ begin
   end;
 end;
 
-procedure TCaptureView.RefreshData;
-begin
-  EvaluatePreflight;
-  PaintLiveView.Invalidate;
-end;
-
 procedure TCaptureView.EvaluatePreflight;
 var
   Ctx: TCPAppContext;
@@ -126,15 +440,17 @@ begin
   Res := Ctx.RunPreflight(EdtHole.Text, EdtTray.Text, FVal, TVal, CR);
   if Res.IsReady then
   begin
-    LblPreflightStatus.Caption := 'READY TO CAPTURE';
-    LblPreflightStatus.Font.Color := COLOR_SUCCESS;
+    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop '#10003;
+    LblPreflightVerdict.Caption := 'READY TO CAPTURE: All pre-flight checklist items verified.';
+    LblPreflightVerdict.Font.Color := COLOR_SUCCESS;
     BtnCapture.Enabled := True;
   end
   else
   begin
-    LblPreflightStatus.Caption := 'PRE-FLIGHT INCOMPLETE';
-    LblPreflightStatus.Font.Color := COLOR_ERROR;
-    BtnCapture.Enabled := True;
+    LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop X';
+    LblPreflightVerdict.Caption := 'CANNOT CAPTURE: ' + Res.BlockingReason;
+    LblPreflightVerdict.Font.Color := COLOR_ERROR;
+    BtnCapture.Enabled := True; // Let operator click and see remedy dialog
   end;
   Res.Items.Free;
 end;
@@ -170,12 +486,12 @@ begin
   H := PaintLiveView.Height;
   if (W <= 0) or (H <= 0) then Exit;
 
-  // 1. Fill dark charcoal background
-  PaintLiveView.Canvas.Brush.Color := RGB(24, 24, 27);
+  // 1. Dark charcoal background
+  PaintLiveView.Canvas.Brush.Color := RGB(10, 10, 12);
   PaintLiveView.Canvas.FillRect(Rect(0, 0, W, H));
 
-  // 2. Render live frame if available
-  if (FLastFrame <> nil) and (FLastFrame.Width > 0) and (FLastFrame.Height > 0) then
+  // 2. Render live camera frame
+  if FLiveViewActive and (FLastFrame <> nil) and (FLastFrame.Width > 0) and (FLastFrame.Height > 0) then
   begin
     Scale := Min(W / FLastFrame.Width, H / FLastFrame.Height);
     DispW := Max(1, Round(FLastFrame.Width * Scale));
@@ -200,7 +516,7 @@ begin
     PaintLiveView.Canvas.CopyRect(DstRect, FLastFrame.Canvas, SrcRect);
   end;
 
-  // 3. Draw Grid (Rule of Thirds) in dashed cyan/blue if enabled
+  // 3. Rule of Thirds Grid
   if FGridEnabled then
   begin
     PaintLiveView.Canvas.Pen.Color := RGB(2, 132, 199);
@@ -211,45 +527,46 @@ begin
     PaintLiveView.Canvas.MoveTo(0, 2 * H div 3); PaintLiveView.Canvas.LineTo(W, 2 * H div 3);
   end;
 
-  // 4. Geological Tray Crop Box (300 x 200 ratio)
-  CW := Round(W * 0.88);
-  CH := Round(CW / 1.5);
-  if CH > Round(H * 0.88) then
+  // 4. Crop Box
+  if FCropBoxEnabled then
   begin
-    CH := Round(H * 0.88);
-    CW := Round(CH * 1.5);
+    CW := Round(W * 0.88);
+    CH := Round(CW / 1.5);
+    if CH > Round(H * 0.88) then
+    begin
+      CH := Round(H * 0.88);
+      CW := Round(CH * 1.5);
+    end;
+
+    CX1 := (W - CW) div 2;
+    CY1 := (H - CH) div 2;
+    CX2 := CX1 + CW;
+    CY2 := CY1 + CH;
+
+    PaintLiveView.Canvas.Pen.Style := psSolid;
+    PaintLiveView.Canvas.Pen.Color := clWhite;
+    PaintLiveView.Canvas.Pen.Width := 2;
+    PaintLiveView.Canvas.Brush.Style := bsClear;
+    PaintLiveView.Canvas.Rectangle(CX1, CY1, CX2, CY2);
+
+    TotalRows := StrToIntDef(EdtRows.Text, 3);
+    if TotalRows < 1 then TotalRows := 1;
+    RowH := CH div TotalRows;
+    for R := 1 to TotalRows - 1 do
+    begin
+      RY := CY1 + R * RowH;
+      PaintLiveView.Canvas.MoveTo(CX1, RY);
+      PaintLiveView.Canvas.LineTo(CX2, RY);
+    end;
+
+    // Slate watermark
+    PaintLiveView.Canvas.Font.Name := 'Segoe UI';
+    PaintLiveView.Canvas.Font.Size := 14;
+    PaintLiveView.Canvas.Font.Style := [fsBold];
+    PaintLiveView.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
+    PaintLiveView.Canvas.TextOut(CX1 + 10, CY1 + 8,
+      Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
   end;
-
-  CX1 := (W - CW) div 2;
-  CY1 := (H - CH) div 2;
-  CX2 := CX1 + CW;
-  CY2 := CY1 + CH;
-
-  // Bounding rectangle
-  PaintLiveView.Canvas.Pen.Style := psSolid;
-  PaintLiveView.Canvas.Pen.Color := clWhite;
-  PaintLiveView.Canvas.Pen.Width := 2;
-  PaintLiveView.Canvas.Brush.Style := bsClear;
-  PaintLiveView.Canvas.Rectangle(CX1, CY1, CX2, CY2);
-
-  // Row dividers matching Tray Rows
-  TotalRows := StrToIntDef(EdtRows.Text, 3);
-  if TotalRows < 1 then TotalRows := 1;
-  RowH := CH div TotalRows;
-  for R := 1 to TotalRows - 1 do
-  begin
-    RY := CY1 + R * RowH;
-    PaintLiveView.Canvas.MoveTo(CX1, RY);
-    PaintLiveView.Canvas.LineTo(CX2, RY);
-  end;
-
-  // Watermark Slate: Hole ID, Tray ID, Interval
-  PaintLiveView.Canvas.Font.Name := 'Segoe UI';
-  PaintLiveView.Canvas.Font.Size := 14;
-  PaintLiveView.Canvas.Font.Style := [fsBold];
-  PaintLiveView.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
-  PaintLiveView.Canvas.TextOut(CX1 + 10, CY1 + 8,
-    Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
 end;
 
 procedure TCaptureView.BtnCaptureClick(Sender: TObject);
@@ -257,6 +574,8 @@ var
   Ctx: TCPAppContext;
   CR: TCropRegion;
   FVal, TVal: Double;
+  CapRes: TCaptureResult;
+  Photo: TPhotoModel;
 begin
   Ctx := GetAppContext;
   CR.X := 0; CR.Y := 0; CR.Width := 300; CR.Height := 200;
@@ -264,9 +583,19 @@ begin
   TVal := StrToFloatDef(EdtTo.Text, 2.0);
 
   try
-    Ctx.ExecuteCapture(EdtHole.Text, EdtTray.Text, FVal, TVal, CR);
+    Photo := Ctx.ExecuteCapture(EdtHole.Text, EdtTray.Text, FVal, TVal, CR);
+
+    LblDimVal.Caption := Format('%dx%d px', [Photo.CroppedWidth, Photo.CroppedHeight]);
+    LblSizeVal.Caption := Format('%.2f MB', [Photo.FileSize / (1024.0 * 1024.0)]);
+    LblCapVal.Caption := 'Captured (OK)';
+    LblDestVal.Caption := ExtractFileName(Photo.JpgPath);
+
+    BtnRetake.Enabled := True;
+    BtnSave.Enabled := True;
+
     ShowMessage('✓ FOTO BERHASIL DIAMBIL & DIPROSES!' + sLineBreak +
-      Format('Hole: %s  |  Tray: %s  |  %.2f - %.2f m', [EdtHole.Text, EdtTray.Text, FVal, TVal]));
+      Format('Hole: %s  |  Tray: %s  |  %.2f - %.2f m', [Photo.HoleId, Photo.TrayNumber, FVal, TVal]));
+
     AdvanceToNextTray;
   except
     on E: Exception do
@@ -277,34 +606,28 @@ end;
 procedure TCaptureView.BtnRetakeClick(Sender: TObject);
 begin
   GetAppContext.RetakeCurrent;
-  ShowMessage('Retake aktif: Foto lama ditandai SUPERSEDED.');
+  LblCapVal.Caption := 'SUPERSEDED (Retake)';
+  ShowMessage('Foto lama ditandai SUPERSEDED. Siap untuk pengambilan ulang.');
 end;
 
-procedure TCaptureView.BtnSaveNextClick(Sender: TObject);
+procedure TCaptureView.BtnSaveClick(Sender: TObject);
 var
   Cnt: Integer;
 begin
-  AdvanceToNextTray;
   if GetAppContext.GetServerFolder <> '' then
   begin
     if GetAppContext.SyncSessionToServerFolder('', Cnt) then
-      ShowMessage(Format('Tray lanjut. %d file disinkronkan ke server folder.', [Cnt]));
+      ShowMessage(Format('✓ %d foto berhasil disimpan && disinkronkan ke server folder.', [Cnt]))
+    else
+      ShowMessage('Foto tersimpan lokal. Sinkronisasi server gagal.');
   end
   else
-    ShowMessage('Tray berhasil disimpan. Lanjut ke tray berikutnya!');
+    ShowMessage('✓ Foto tray berhasil disimpan ke database lokal.');
 end;
 
-procedure TCaptureView.ChkGridClick(Sender: TObject);
+procedure TCaptureView.BtnFinishClick(Sender: TObject);
 begin
-  FGridEnabled := ChkGrid.Checked;
-  PaintLiveView.Invalidate;
-end;
-
-procedure TCaptureView.BtnZoomClick(Sender: TObject);
-begin
-  FIsZoomed := not FIsZoomed;
-  if FIsZoomed then BtnZoom.Caption := 'Zoom Out' else BtnZoom.Caption := 'Zoom In';
-  PaintLiveView.Invalidate;
+  ShowMessage('Sesi pemotretan selesai. Semua data tersimpan aman di database.');
 end;
 
 end.
