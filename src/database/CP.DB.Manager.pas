@@ -90,7 +90,7 @@ end;
 
 procedure TCPDatabaseManager.Close;
 begin
-  if FConnPool <> nil and FConnPool.Connected then
+  if Assigned(FConnPool) and FConnPool.Connected then
     FConnPool.Connected := False;
 end;
 
