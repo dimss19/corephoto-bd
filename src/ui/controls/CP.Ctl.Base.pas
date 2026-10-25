@@ -3,6 +3,7 @@ unit CP.Ctl.Base;
 interface
 
 uses
+  Winapi.Windows, Winapi.Messages,
   System.SysUtils, System.Classes, System.Types, Vcl.Controls, Vcl.Graphics,
   Vcl.StdCtrls, Vcl.ExtCtrls, CP.UI.Theme;
 
