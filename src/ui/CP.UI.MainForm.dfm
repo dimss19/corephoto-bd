@@ -36,6 +36,42 @@ object MainForm: TMainForm
       Font.Style = [fsBold]
       ParentFont = False
     end
+    object BtnNavCapture: TButton
+      Left = 135
+      Top = 8
+      Width = 105
+      Height = 28
+      Caption = 'Live / Capture'
+      TabOrder = 1
+      OnClick = BtnNavCaptureClick
+    end
+    object BtnNavReview: TButton
+      Left = 245
+      Top = 8
+      Width = 105
+      Height = 28
+      Caption = 'Tray Review'
+      TabOrder = 2
+      OnClick = BtnNavReviewClick
+    end
+    object BtnNavData: TButton
+      Left = 355
+      Top = 8
+      Width = 105
+      Height = 28
+      Caption = 'Data Hub'
+      TabOrder = 3
+      OnClick = BtnNavDataClick
+    end
+    object BtnNavSettings: TButton
+      Left = 465
+      Top = 8
+      Width = 105
+      Height = 28
+      Caption = 'Settings'
+      TabOrder = 4
+      OnClick = BtnNavSettingsClick
+    end
     object PnlStatusSection: TPanel
       Left = 700
       Top = 0

@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
-  Vcl.ExtCtrls, Vcl.Graphics, CP.UI.Theme, CP.Core.AppContext,
+  Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, CP.UI.Theme, CP.Core.AppContext,
   CP.Diagnostics, CP.Config.Manager;
 
 type
@@ -39,12 +39,14 @@ type
 
 implementation
 
+uses
+  CP.Camera.Webcam;
+
 {$R *.dfm}
 
 constructor TSettingsView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  RefreshData;
 end;
 
 procedure TSettingsView.RefreshData;
@@ -52,21 +54,46 @@ var
   Ctx: TCPAppContext;
   Diag: TCPDiagnosticsManager;
 begin
-  Ctx := GetAppContext;
-  LblCamStatus.Caption := Ctx.Camera.GetStatusSummary;
-  EdtServerFolder.Text := Ctx.GetServerFolder;
-
-  Diag := TCPDiagnosticsManager.Create;
   try
-    MemoLogs.Text := Diag.ReadRecentLogs(50);
-  finally
-    Diag.Free;
+    Ctx := GetAppContext;
+    if (Ctx <> nil) and (Ctx.Camera <> nil) then
+      LblCamStatus.Caption := Ctx.Camera.GetStatusSummary;
+    if Ctx <> nil then
+      EdtServerFolder.Text := Ctx.GetServerFolder;
+
+    Diag := TCPDiagnosticsManager.Create;
+    try
+      MemoLogs.Text := Diag.ReadRecentLogs(50);
+    finally
+      Diag.Free;
+    end;
+  except
+    on E: Exception do
+      LblCamStatus.Caption := 'Camera: Standby';
   end;
 end;
 
 procedure TSettingsView.BtnDetectCamClick(Sender: TObject);
+var
+  Devs: TArray<string>;
+  Msg: string;
+  I: Integer;
 begin
-  GetAppContext.Camera.ConnectCamera('webcam', '0');
+  Devs := TWebcamAdapter.ListDevices;
+  if Length(Devs) > 0 then
+  begin
+    Msg := Format('Ditemukan %d kamera terhubung:', [Length(Devs)]) + sLineBreak;
+    for I := 0 to High(Devs) do
+      Msg := Msg + Format('  [%d] %s', [I, Devs[I]]) + sLineBreak;
+    Msg := Msg + sLineBreak + 'Menghubungkan ke kamera utama...';
+    ShowMessage(Msg);
+    GetAppContext.Camera.ConnectCamera('webcam', '0');
+  end
+  else
+  begin
+    ShowMessage('Tidak ada kamera DirectShow terdeteksi. Berjalan dalam mode Simulator Standby.');
+    GetAppContext.Camera.ConnectCamera('webcam', 'sim');
+  end;
   RefreshData;
 end;
 
@@ -74,6 +101,7 @@ procedure TSettingsView.BtnReconnectCamClick(Sender: TObject);
 begin
   GetAppContext.Camera.ConnectCamera('webcam', '0');
   RefreshData;
+  ShowMessage('Koneksi kamera di-refresh.');
 end;
 
 procedure TSettingsView.BtnSaveServerClick(Sender: TObject);

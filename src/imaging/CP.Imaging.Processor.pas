@@ -173,7 +173,7 @@ var
   Md5Raw, Md5Jpg, TimestampStr, DisplayTime: string;
   DecodedBmp, CroppedBmp, SlatedBmp: TBitmap;
   Jpg: TJPEGImage;
-  InitialQuality, CurrentQuality, CropW, CropH: Integer;
+  InitialQuality, CurrentQuality: Integer;
   MaxSizeMB, MaxBytes, FileSize: Int64;
   SafeCrop: TCropRegion;
   MetaObj: TJSONObject;
@@ -188,8 +188,6 @@ begin
   RawFile := TPath.Combine(Paths.RawDir, FilenameBase + '.' + RawExt);
   TRawHandler.SaveRaw(RawBytes, RawFile, Md5Raw);
 
-  CropW := GetConfig.GetInteger('imaging', 'crop_width', 300);
-  CropH := GetConfig.GetInteger('imaging', 'crop_height', 200);
 
   // 2. Initial DB model record (CAPTURED)
   Result.SessionId := Session.Id;

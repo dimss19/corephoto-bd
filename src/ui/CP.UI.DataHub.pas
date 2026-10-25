@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
-  Vcl.ExtCtrls, Vcl.Graphics, CP.UI.Theme, CP.Core.AppContext;
+  Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, CP.UI.Theme, CP.Core.AppContext;
 
 type
   TDataHubView = class(TFrame)
@@ -42,14 +42,13 @@ type
 implementation
 
 uses
-  CP.UI.DatePicker;
+  CP.UI.DatePicker, CP.UI.MainForm;
 
 {$R *.dfm}
 
 constructor TDataHubView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  RefreshData;
 end;
 
 procedure TDataHubView.RefreshData;
@@ -78,13 +77,18 @@ begin
 end;
 
 procedure TDataHubView.BtnBackToCaptureClick(Sender: TObject);
+var
+  F: TCustomForm;
 begin
-  // Parent MainForm navigation
+  F := GetParentForm(Self);
+  if (F <> nil) and (F is TMainForm) then
+    TMainForm(F).NavigateTo('capture');
 end;
 
 procedure TDataHubView.BtnCreateSessionClick(Sender: TObject);
 var
   Site, Op, Dt: string;
+  F: TCustomForm;
 begin
   Site := Trim(EdtSite.Text);
   Op := Trim(EdtOperator.Text);
@@ -96,16 +100,24 @@ begin
   end;
   GetAppContext.CreateNewSession(Site, Op, Dt);
   RefreshData;
+  ShowMessage('✓ Session berhasil dibuat: ' + Site);
+  F := GetParentForm(Self);
+  if (F <> nil) and (F is TMainForm) then
+    TMainForm(F).NavigateTo('capture');
 end;
 
 procedure TDataHubView.BtnOpenSessionClick(Sender: TObject);
 var
   Sel: string;
+  F: TCustomForm;
 begin
   if LstSessions.ItemIndex < 0 then Exit;
   Sel := LstSessions.Items[LstSessions.ItemIndex];
   GetAppContext.OpenSession(Sel);
   RefreshData;
+  F := GetParentForm(Self);
+  if (F <> nil) and (F is TMainForm) then
+    TMainForm(F).NavigateTo('capture');
 end;
 
 procedure TDataHubView.BtnDeleteSessionClick(Sender: TObject);

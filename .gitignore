@@ -24,3 +24,7 @@ Desktop.ini
 Win32/
 Win64/
 bin/
+CorePhotoData/
+CorePhoto.exe
+CorePhoto.res
+

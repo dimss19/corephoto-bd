@@ -11,6 +11,10 @@ type
   TMainForm = class(TForm)
     PnlTopBar: TPanel;
     LblBrand: TLabel;
+    BtnNavCapture: TButton;
+    BtnNavReview: TButton;
+    BtnNavData: TButton;
+    BtnNavSettings: TButton;
     PnlStatusSection: TPanel;
     BtnHeaderSession: TButton;
     LblHeaderCamera: TLabel;
@@ -23,6 +27,10 @@ type
     procedure FormCreate(Sender: TObject);
     procedure BtnHeaderSessionClick(Sender: TObject);
     procedure BtnHeaderSettingsClick(Sender: TObject);
+    procedure BtnNavCaptureClick(Sender: TObject);
+    procedure BtnNavReviewClick(Sender: TObject);
+    procedure BtnNavDataClick(Sender: TObject);
+    procedure BtnNavSettingsClick(Sender: TObject);
   private
     FCaptureView: TCaptureView;
     FReviewView: TReviewView;
@@ -44,25 +52,40 @@ procedure TMainForm.FormCreate(Sender: TObject);
 begin
   Color := COLOR_BG;
 
-  // Initialize Views inside content panel
-  FCaptureView := TCaptureView.Create(Self);
-  FCaptureView.Parent := PnlContent;
-  FCaptureView.Align := alClient;
+  try
+    FCaptureView := TCaptureView.Create(Self);
+    FCaptureView.Parent := PnlContent;
+    FCaptureView.Align := alClient;
+  except
+    FCaptureView := nil;
+  end;
 
-  FReviewView := TReviewView.Create(Self);
-  FReviewView.Parent := PnlContent;
-  FReviewView.Align := alClient;
-  FReviewView.Visible := False;
+  try
+    FReviewView := TReviewView.Create(Self);
+    FReviewView.Parent := PnlContent;
+    FReviewView.Align := alClient;
+    FReviewView.Visible := False;
+  except
+    FReviewView := nil;
+  end;
 
-  FDataHubView := TDataHubView.Create(Self);
-  FDataHubView.Parent := PnlContent;
-  FDataHubView.Align := alClient;
-  FDataHubView.Visible := False;
+  try
+    FDataHubView := TDataHubView.Create(Self);
+    FDataHubView.Parent := PnlContent;
+    FDataHubView.Align := alClient;
+    FDataHubView.Visible := False;
+  except
+    FDataHubView := nil;
+  end;
 
-  FSettingsView := TSettingsView.Create(Self);
-  FSettingsView.Parent := PnlContent;
-  FSettingsView.Align := alClient;
-  FSettingsView.Visible := False;
+  try
+    FSettingsView := TSettingsView.Create(Self);
+    FSettingsView.Parent := PnlContent;
+    FSettingsView.Align := alClient;
+    FSettingsView.Visible := False;
+  except
+    FSettingsView := nil;
+  end;
 
   NavigateTo('capture');
   UpdateHeader;
@@ -73,15 +96,15 @@ var
   R: string;
 begin
   R := LowerCase(Trim(Route));
-  FCaptureView.Visible := (R = 'capture') or (R = 'dashboard');
-  FReviewView.Visible := (R = 'review') or (R = 'browser');
-  FDataHubView.Visible := (R = 'data') or (R = 'session');
-  FSettingsView.Visible := (R = 'settings') or (R = 'diagnostics');
+  if Assigned(FCaptureView) then FCaptureView.Visible := (R = 'capture') or (R = 'dashboard');
+  if Assigned(FReviewView) then FReviewView.Visible := (R = 'review') or (R = 'browser');
+  if Assigned(FDataHubView) then FDataHubView.Visible := (R = 'data') or (R = 'session');
+  if Assigned(FSettingsView) then FSettingsView.Visible := (R = 'settings') or (R = 'diagnostics');
 
-  if FCaptureView.Visible then FCaptureView.RefreshData;
-  if FReviewView.Visible then FReviewView.RefreshData;
-  if FDataHubView.Visible then FDataHubView.RefreshData;
-  if FSettingsView.Visible then FSettingsView.RefreshData;
+  if Assigned(FCaptureView) and FCaptureView.Visible then FCaptureView.RefreshData;
+  if Assigned(FReviewView) and FReviewView.Visible then FReviewView.RefreshData;
+  if Assigned(FDataHubView) and FDataHubView.Visible then FDataHubView.RefreshData;
+  if Assigned(FSettingsView) and FSettingsView.Visible then FSettingsView.RefreshData;
 
   UpdateHeader;
 end;
@@ -91,37 +114,44 @@ var
   Ctx: TCPAppContext;
   AvailGB: Double;
 begin
-  Ctx := GetAppContext;
-  if Ctx.ActiveSession.Id <> '' then
-  begin
-    BtnHeaderSession.Caption := 'Session: ' + Ctx.ActiveSession.Site;
-    LblBottomStatus.Caption := Format('Session: %s  |  Operator: %s  |  Date: %s',
-      [Ctx.ActiveSession.Site, Ctx.ActiveSession.OperatorName, Ctx.ActiveSession.DateStr]);
-  end
-  else
-  begin
-    BtnHeaderSession.Caption := 'Session: [None]';
-    LblBottomStatus.Caption := 'No active session | Click "Session" in header to select';
-  end;
+  try
+    Ctx := GetAppContext;
+    if (Ctx <> nil) and (Ctx.ActiveSession.Id <> '') then
+    begin
+      BtnHeaderSession.Caption := 'Session: ' + Ctx.ActiveSession.Site;
+      LblBottomStatus.Caption := Format('Session: %s  |  Operator: %s  |  Date: %s',
+        [Ctx.ActiveSession.Site, Ctx.ActiveSession.OperatorName, Ctx.ActiveSession.DateStr]);
+    end
+    else
+    begin
+      BtnHeaderSession.Caption := 'Session: [None]';
+      LblBottomStatus.Caption := 'No active session | Click "Session" in header to select';
+    end;
 
-  if Ctx.Camera.IsReady then
-  begin
-    LblHeaderCamera.Caption := '● Connected';
-    LblHeaderCamera.Font.Color := COLOR_SUCCESS;
-  end
-  else
-  begin
-    LblHeaderCamera.Caption := '● Disconnected';
-    LblHeaderCamera.Font.Color := COLOR_ERROR;
-  end;
+    if (Ctx <> nil) and (Ctx.Camera <> nil) and Ctx.Camera.IsReady then
+    begin
+      LblHeaderCamera.Caption := '● Connected';
+      LblHeaderCamera.Font.Color := COLOR_SUCCESS;
+    end
+    else
+    begin
+      LblHeaderCamera.Caption := '● Disconnected';
+      LblHeaderCamera.Font.Color := COLOR_ERROR;
+    end;
 
-  AvailGB := Ctx.Storage.GetAvailableSpaceMB / 1024.0;
-  LblHeaderStorage.Caption := Format('Storage: %.1f GB', [AvailGB]);
+    if (Ctx <> nil) and (Ctx.Storage <> nil) then
+    begin
+      AvailGB := Ctx.Storage.GetAvailableSpaceMB / 1024.0;
+      LblHeaderStorage.Caption := Format('Storage: %.1f GB', [AvailGB]);
+    end;
+  except
+    on E: Exception do ;
+  end;
 end;
 
 procedure TMainForm.BtnHeaderSessionClick(Sender: TObject);
 begin
-  if FDataHubView.Visible then
+  if Assigned(FDataHubView) and FDataHubView.Visible then
     NavigateTo('capture')
   else
     NavigateTo('data');
@@ -129,10 +159,30 @@ end;
 
 procedure TMainForm.BtnHeaderSettingsClick(Sender: TObject);
 begin
-  if FSettingsView.Visible then
+  if Assigned(FSettingsView) and FSettingsView.Visible then
     NavigateTo('capture')
   else
     NavigateTo('settings');
+end;
+
+procedure TMainForm.BtnNavCaptureClick(Sender: TObject);
+begin
+  NavigateTo('capture');
+end;
+
+procedure TMainForm.BtnNavReviewClick(Sender: TObject);
+begin
+  NavigateTo('review');
+end;
+
+procedure TMainForm.BtnNavDataClick(Sender: TObject);
+begin
+  NavigateTo('data');
+end;
+
+procedure TMainForm.BtnNavSettingsClick(Sender: TObject);
+begin
+  NavigateTo('settings');
 end;
 
 end.

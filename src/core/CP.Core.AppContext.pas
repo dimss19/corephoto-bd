@@ -55,7 +55,8 @@ type
 
     function GetServerFolder: string;
     function TransferPhotoToServerFolder(const Photo: TPhotoModel; const ServerDir: string = ''): Boolean;
-    function SyncSessionToServerFolder(const ServerDir: string = ''; out SyncedCount: Integer): Boolean;
+    function SyncSessionToServerFolder(const ServerDir: string; out SyncedCount: Integer): Boolean; overload;
+    function SyncSessionToServerFolder(out SyncedCount: Integer): Boolean; overload;
 
     property Config: TCPConfigManager read FConfig;
     property Storage: TCPStorageManager read FStorage;
@@ -482,6 +483,11 @@ begin
   except
     on E: Exception do Log.Error('Sync session failed: ' + E.Message);
   end;
+end;
+
+function TCPAppContext.SyncSessionToServerFolder(out SyncedCount: Integer): Boolean;
+begin
+  Result := SyncSessionToServerFolder('', SyncedCount);
 end;
 
 end.

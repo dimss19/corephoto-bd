@@ -14,7 +14,6 @@ type
     FCaps: TCameraCapabilities;
     FWatchDir: string;
     FLock: TCriticalSection;
-    FLastArrivedFile: string;
   public
     constructor Create(const AWatchDir: string = '');
     destructor Destroy; override;

@@ -105,7 +105,7 @@ begin
     if Sock = INVALID_SOCKET then Exit;
     try
       Mode := 1;
-      ioctlsocket(Sock, FIONBIO, Mode); // Non-blocking
+      ioctlsocket(Sock, Longint(FIONBIO), Mode); // Non-blocking
 
       FillChar(Addr, SizeOf(Addr), 0);
       Addr.sin_family := AF_INET;

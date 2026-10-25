@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
-  Vcl.ExtCtrls, Vcl.Graphics, CP.UI.Theme, CP.Core.AppContext, CP.DB.Models;
+  Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, Vcl.Imaging.jpeg, CP.UI.Theme, CP.Core.AppContext, CP.DB.Models;
 
 type
   TReviewView = class(TFrame)
@@ -47,7 +47,6 @@ begin
   inherited Create(AOwner);
   PnlInspect.Visible := True;
   PnlCatalog.Visible := False;
-  RefreshData;
 end;
 
 procedure TReviewView.RefreshData;
@@ -126,8 +125,40 @@ begin
 end;
 
 procedure TReviewView.LstPhotosClick(Sender: TObject);
+var
+  Ctx: TCPAppContext;
+  AllPhotos: TList<TPhotoModel>;
+  Idx: Integer;
+  P: TPhotoModel;
 begin
-  // Load photo into inspect view
+  Idx := LstPhotos.ItemIndex;
+  if Idx < 0 then Exit;
+  Ctx := GetAppContext;
+  if (Ctx.ActiveSession.Id <> '') and (Ctx.PhotoRepo <> nil) then
+  begin
+    AllPhotos := Ctx.PhotoRepo.ListBySession(Ctx.ActiveSession.Id);
+    try
+      if (Idx >= 0) and (Idx < AllPhotos.Count) then
+      begin
+        P := AllPhotos[Idx];
+        LblHoleVal.Caption := 'Hole ID: ' + P.HoleId;
+        LblTrayVal.Caption := 'Tray Number: ' + P.TrayNumber;
+        LblDepthVal.Caption := Format('Depth: %.2f - %.2f m', [P.IntervalFrom, P.IntervalTo]);
+        LblStatusVal.Caption := 'Status: ' + P.Status;
+        if (P.JpgPath <> '') and FileExists(P.JpgPath) then
+        begin
+          try
+            ImgPreview.Picture.LoadFromFile(P.JpgPath);
+          except
+          end;
+        end;
+        PnlInspect.Visible := True;
+        PnlCatalog.Visible := False;
+      end;
+    finally
+      AllPhotos.Free;
+    end;
+  end;
 end;
 
 end.

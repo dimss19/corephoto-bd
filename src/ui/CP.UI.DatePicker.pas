@@ -49,9 +49,10 @@ end;
 procedure TDatePickerModal.FormCreate(Sender: TObject);
 var
   I: Integer;
+  CurDay: Word;
 begin
   Color := COLOR_PANEL;
-  DecodeDate(Now, FCurrentYear, FCurrentMonth, I);
+  DecodeDate(Now, FCurrentYear, FCurrentMonth, CurDay);
   FSelectedDate := Now;
 
   for I := 1 to 42 do
