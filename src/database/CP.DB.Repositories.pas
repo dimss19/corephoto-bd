@@ -3,7 +3,7 @@ unit CP.DB.Repositories;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.Generics.Collections,
+  System.SysUtils, System.Classes, System.Variants, System.Generics.Collections,
   FireDAC.Comp.Client,
   CP.DB.Models, CP.DB.Manager;
 
