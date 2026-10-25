@@ -270,7 +270,7 @@ begin
           pVIH^.bmiHeader.biWidth := ReqW;
           pVIH^.bmiHeader.biHeight := ReqH;
           pVIH^.bmiHeader.biSizeImage := ((ReqW * 24 + 31) and not 31) div 8 * ReqH;
-          HR := StreamConfig.SetFormat(MT^);
+          HR := StreamConfig.SetFormat(MT);
           if Succeeded(HR) then
             Log.Info(Format('DirectShow pin format configured to %dx%d', [ReqW, ReqH]));
         end;
