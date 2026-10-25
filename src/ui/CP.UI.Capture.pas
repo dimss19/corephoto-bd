@@ -141,8 +141,10 @@ type
     FCropBoxEnabled: Boolean;
     FIsZoomed: Boolean;
     FLiveViewActive: Boolean;
+    FInLiveTimer: Boolean;
     FTimerLiveView: TTimer;
     FLastFrame: TBitmap;
+    FBufferBmp: TBitmap;
 
     procedure OnLiveTimer(Sender: TObject);
     procedure EvaluatePreflight;
@@ -169,12 +171,17 @@ uses
 constructor TCaptureView.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  DoubleBuffered := True;
+  PnlCenter.DoubleBuffered := True;
   FActiveTab := 0;
   FGridEnabled := True;
   FCropBoxEnabled := True;
   FIsZoomed := False;
   FLiveViewActive := True;
+  FInLiveTimer := False;
   FLastFrame := TBitmap.Create;
+  FBufferBmp := TBitmap.Create;
+  FBufferBmp.PixelFormat := pf24bit;
 
   FTimerLiveView := TTimer.Create(Self);
   FTimerLiveView.Interval := 66; // ~15 FPS
@@ -192,6 +199,7 @@ begin
   FTimerLiveView.Enabled := False;
   FTimerLiveView.Free;
   FLastFrame.Free;
+  FBufferBmp.Free;
   inherited Destroy;
 end;
 
@@ -405,7 +413,8 @@ var
   Ctx: TCPAppContext;
   NewBmp: TBitmap;
 begin
-  if (not Visible) or (not FLiveViewActive) then Exit;
+  if FInLiveTimer or (not Visible) or (not FLiveViewActive) then Exit;
+  FInLiveTimer := True;
   try
     Ctx := GetAppContext;
     if (Ctx <> nil) and (Ctx.Camera <> nil) then
@@ -423,6 +432,7 @@ begin
     end;
   except
   end;
+  FInLiveTimer := False;
 end;
 
 procedure TCaptureView.EvaluatePreflight;
@@ -490,9 +500,12 @@ begin
   H := PaintLiveView.Height;
   if (W <= 0) or (H <= 0) then Exit;
 
-  // 1. Dark charcoal background
-  PaintLiveView.Canvas.Brush.Color := RGB(10, 10, 12);
-  PaintLiveView.Canvas.FillRect(Rect(0, 0, W, H));
+  if (FBufferBmp.Width <> W) or (FBufferBmp.Height <> H) then
+    FBufferBmp.SetSize(W, H);
+
+  // 1. Dark charcoal background rendered on off-screen buffer
+  FBufferBmp.Canvas.Brush.Color := RGB(10, 10, 12);
+  FBufferBmp.Canvas.FillRect(Rect(0, 0, W, H));
 
   // 2. Render live camera frame
   if FLiveViewActive and (FLastFrame <> nil) and (FLastFrame.Width > 0) and (FLastFrame.Height > 0) then
@@ -517,18 +530,18 @@ begin
     else
       SrcRect := Rect(0, 0, FLastFrame.Width, FLastFrame.Height);
 
-    PaintLiveView.Canvas.CopyRect(DstRect, FLastFrame.Canvas, SrcRect);
+    FBufferBmp.Canvas.CopyRect(DstRect, FLastFrame.Canvas, SrcRect);
   end;
 
   // 3. Rule of Thirds Grid
   if FGridEnabled then
   begin
-    PaintLiveView.Canvas.Pen.Color := RGB(2, 132, 199);
-    PaintLiveView.Canvas.Pen.Style := psDot;
-    PaintLiveView.Canvas.MoveTo(W div 3, 0); PaintLiveView.Canvas.LineTo(W div 3, H);
-    PaintLiveView.Canvas.MoveTo(2 * W div 3, 0); PaintLiveView.Canvas.LineTo(2 * W div 3, H);
-    PaintLiveView.Canvas.MoveTo(0, H div 3); PaintLiveView.Canvas.LineTo(W, H div 3);
-    PaintLiveView.Canvas.MoveTo(0, 2 * H div 3); PaintLiveView.Canvas.LineTo(W, 2 * H div 3);
+    FBufferBmp.Canvas.Pen.Color := RGB(2, 132, 199);
+    FBufferBmp.Canvas.Pen.Style := psDot;
+    FBufferBmp.Canvas.MoveTo(W div 3, 0); FBufferBmp.Canvas.LineTo(W div 3, H);
+    FBufferBmp.Canvas.MoveTo(2 * W div 3, 0); FBufferBmp.Canvas.LineTo(2 * W div 3, H);
+    FBufferBmp.Canvas.MoveTo(0, H div 3); FBufferBmp.Canvas.LineTo(W, H div 3);
+    FBufferBmp.Canvas.MoveTo(0, 2 * H div 3); FBufferBmp.Canvas.LineTo(W, 2 * H div 3);
   end;
 
   // 4. Crop Box
@@ -547,11 +560,11 @@ begin
     CX2 := CX1 + CW;
     CY2 := CY1 + CH;
 
-    PaintLiveView.Canvas.Pen.Style := psSolid;
-    PaintLiveView.Canvas.Pen.Color := clWhite;
-    PaintLiveView.Canvas.Pen.Width := 2;
-    PaintLiveView.Canvas.Brush.Style := bsClear;
-    PaintLiveView.Canvas.Rectangle(CX1, CY1, CX2, CY2);
+    FBufferBmp.Canvas.Pen.Style := psSolid;
+    FBufferBmp.Canvas.Pen.Color := clWhite;
+    FBufferBmp.Canvas.Pen.Width := 2;
+    FBufferBmp.Canvas.Brush.Style := bsClear;
+    FBufferBmp.Canvas.Rectangle(CX1, CY1, CX2, CY2);
 
     TotalRows := StrToIntDef(EdtRows.Text, 3);
     if TotalRows < 1 then TotalRows := 1;
@@ -559,18 +572,22 @@ begin
     for R := 1 to TotalRows - 1 do
     begin
       RY := CY1 + R * RowH;
-      PaintLiveView.Canvas.MoveTo(CX1, RY);
-      PaintLiveView.Canvas.LineTo(CX2, RY);
+      FBufferBmp.Canvas.MoveTo(CX1, RY);
+      FBufferBmp.Canvas.LineTo(CX2, RY);
     end;
 
     // Slate watermark
-    PaintLiveView.Canvas.Font.Name := 'Segoe UI';
-    PaintLiveView.Canvas.Font.Size := 14;
-    PaintLiveView.Canvas.Font.Style := [fsBold];
-    PaintLiveView.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
-    PaintLiveView.Canvas.TextOut(CX1 + 10, CY1 + 8,
+    FBufferBmp.Canvas.Font.Name := 'Segoe UI';
+    FBufferBmp.Canvas.Font.Size := 14;
+    FBufferBmp.Canvas.Font.Style := [fsBold];
+    FBufferBmp.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
+    FBufferBmp.Canvas.Brush.Style := bsClear;
+    FBufferBmp.Canvas.TextOut(CX1 + 10, CY1 + 8,
       Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
   end;
+
+  // 5. Single atomic blit to screen canvas
+  PaintLiveView.Canvas.Draw(0, 0, FBufferBmp);
 end;
 
 procedure TCaptureView.BtnCaptureClick(Sender: TObject);

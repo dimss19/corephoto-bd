@@ -143,10 +143,9 @@ end;
 
 procedure TMainForm.BtnHeaderSessionClick(Sender: TObject);
 begin
-  if Assigned(FDataHubView) and FDataHubView.Visible then
-    NavigateTo('capture')
-  else
-    NavigateTo('data');
+  NavigateTo('capture');
+  if Assigned(FCaptureView) then
+    FCaptureView.SelectTab(1);
 end;
 
 procedure TMainForm.BtnHeaderSettingsClick(Sender: TObject);

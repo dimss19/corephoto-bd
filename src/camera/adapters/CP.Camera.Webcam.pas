@@ -410,7 +410,7 @@ begin
   HR := FSampleGrabber.GetCurrentBuffer(BufSize, nil);
   if (HR <> S_OK) or (BufSize <= 0) then
   begin
-    Result := GenerateStandbyFrame(FTargetW, FTargetH);
+    Result := nil;
     Exit;
   end;
 
@@ -451,7 +451,7 @@ begin
       end;
     end
     else
-      Result := GenerateStandbyFrame(FTargetW, FTargetH);
+      Result := nil;
   finally
     FreeMem(Buf);
   end;
