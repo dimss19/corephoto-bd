@@ -3,7 +3,7 @@ unit CP.Imaging.Raw;
 interface
 
 uses
-  System.SysUtils, System.Classes, System.IOUtils, System.Hash, Vcl.Graphics,
+  System.SysUtils, System.Classes, System.Types, System.IOUtils, System.Hash, Vcl.Graphics,
   Vcl.Imaging.jpeg, Vcl.Imaging.pngimage;
 
 type
@@ -20,8 +20,18 @@ uses
   CP.Core.Logger;
 
 class function TRawHandler.CalculateMD5(const FilePath: string): string;
+var
+  FS: TFileStream;
 begin
-  Result := LowerCase(THashMD5.GetHashFromFile(FilePath));
+  Result := '';
+  if not TFile.Exists(FilePath) then
+    Exit;
+  FS := TFileStream.Create(FilePath, fmOpenRead or fmShareDenyNone);
+  try
+    Result := LowerCase(THashMD5.GetHashString(FS));
+  finally
+    FS.Free;
+  end;
 end;
 
 class function TRawHandler.SaveRaw(const RawBytes: TBytes; const DestinationPath: string; out OutMD5: string): string;
