@@ -4,6 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.ShellAPI, System.SysUtils, System.Classes, System.Math, System.IOUtils,
+  System.Generics.Collections,
   Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, Vcl.ComCtrls, Vcl.FileCtrl,
   CP.UI.Theme, CP.Core.AppContext, CP.Imaging.Crop, CP.Validation.Preflight,
   CP.Camera.Intf, CP.Camera.Webcam;
@@ -277,7 +278,7 @@ begin
   begin
     EdtTargetFolder.Text := Dir;
     GetConfig.SetString('storage', 'primary_path', Dir);
-    GetConfig.SaveToFile;
+    GetConfig.Save;
     RefreshData;
   end;
 end;
@@ -291,7 +292,7 @@ begin
   begin
     EdtServerFolder.Text := Dir;
     GetConfig.SetString('storage', 'server_sync_path', Dir);
-    GetConfig.SaveToFile;
+    GetConfig.Save;
   end;
 end;
 
@@ -349,7 +350,7 @@ begin
   Val := StrToFloatDef(EdtMaxSize.Text, 10.0);
   if Val < 0.5 then Val := 0.5;
   GetConfig.SetFloat('imaging', 'max_photo_size_mb', Val);
-  GetConfig.SaveToFile;
+  GetConfig.Save;
   ShowMessage(Format('Max Photo Size disimpan: %.1f MB', [Val]));
 end;
 
@@ -357,7 +358,7 @@ procedure TCaptureView.RefreshData;
 var
   Ctx: TCPAppContext;
   AvailMB: Double;
-  PList: TList;
+  PList: TList<TPhotoModel>;
   Y, M, D: Word;
 begin
   Ctx := GetAppContext;
@@ -395,7 +396,7 @@ begin
 
   if (Ctx <> nil) and (Ctx.PhotoRepo <> nil) and (Ctx.ActiveSession.Id <> '') then
   begin
-    PList := Ctx.PhotoRepo.GetPhotosForSession(Ctx.ActiveSession.Id);
+    PList := Ctx.PhotoRepo.ListBySession(Ctx.ActiveSession.Id);
     if PList <> nil then
     begin
       LblSeriesCountVal.Caption := IntToStr(PList.Count);
