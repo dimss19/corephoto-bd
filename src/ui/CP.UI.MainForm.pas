@@ -26,9 +26,9 @@ type
     FReviewView: TReviewView;
     FDataHubView: TDataHubView;
     FSettingsView: TSettingsView;
-    procedure UpdateHeader;
   public
     procedure NavigateTo(const Route: string);
+    procedure UpdateHeader;
   end;
 
 var

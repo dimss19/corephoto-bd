@@ -185,7 +185,7 @@ type
 implementation
 
 uses
-  CP.Config.Manager, CP.DB.Models;
+  CP.Config.Manager, CP.DB.Models, CP.UI.MainForm;
 
 {$R *.dfm}
 
@@ -439,10 +439,21 @@ begin
   Ctx := GetAppContext;
   if (Ctx <> nil) and (Ctx.Camera <> nil) then
   begin
-    Info := Ctx.Camera.GetInfo;
-    LblDevModel.Caption := 'Model: ' + Info.Model;
-    LblDevSerial.Caption := 'Serial No: ' + Info.SerialNumber;
-    LblDevFw.Caption := 'Firmware: ' + Info.FirmwareVersion;
+    if Ctx.Camera.IsReady then
+    begin
+      Info := Ctx.Camera.GetInfo;
+      LblDevModel.Caption := 'Model: ' + Info.Model;
+      LblDevSerial.Caption := 'Serial No: ' + Info.SerialNumber;
+      LblDevFw.Caption := 'Firmware: ' + Info.FirmwareVersion;
+      BtnLiveReconnect.Caption := 'Disconnect';
+    end
+    else
+    begin
+      LblDevModel.Caption := 'Model: [Not Connected]';
+      LblDevSerial.Caption := 'Serial No: -';
+      LblDevFw.Caption := 'Firmware: -';
+      BtnLiveReconnect.Caption := 'Connect';
+    end;
   end;
 end;
 
@@ -460,6 +471,8 @@ begin
 
   RefreshCamInfo;
   EvaluatePreflight;
+  if (Application.MainForm <> nil) and (Application.MainForm is TMainForm) then
+    TMainForm(Application.MainForm).UpdateHeader;
 end;
 
 procedure TCaptureView.CmbWebcamDeviceChange(Sender: TObject);
@@ -471,6 +484,8 @@ begin
   GetAppContext.Camera.ConnectCamera('webcam', IntToStr(Idx));
   RefreshCamInfo;
   EvaluatePreflight;
+  if (Application.MainForm <> nil) and (Application.MainForm is TMainForm) then
+    TMainForm(Application.MainForm).UpdateHeader;
 end;
 
 procedure TCaptureView.BtnWebcamRefreshClick(Sender: TObject);
@@ -503,8 +518,42 @@ begin
 end;
 
 procedure TCaptureView.BtnLiveReconnectClick(Sender: TObject);
+var
+  Ctx: TCPAppContext;
+  Idx: Integer;
 begin
-  CmbWebcamDeviceChange(nil);
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.Camera <> nil) then
+  begin
+    if Ctx.Camera.IsReady then
+    begin
+      // Connected -> Disconnect
+      Ctx.Camera.DisconnectCamera;
+      if FLastFrame <> nil then
+      begin
+        FLastFrame.SetSize(640, 480);
+        FLastFrame.Canvas.Brush.Color := RGB(10, 10, 12);
+        FLastFrame.Canvas.FillRect(Rect(0, 0, 640, 480));
+      end;
+      PaintLiveView.Invalidate;
+    end
+    else
+    begin
+      // Disconnected -> Connect
+      Idx := CmbWebcamDevice.ItemIndex;
+      if Idx < 0 then Idx := 0;
+      if CmbInterface.ItemIndex = 1 then
+        Ctx.Camera.ConnectCamera('direct_usb', '0')
+      else
+        Ctx.Camera.ConnectCamera('webcam', IntToStr(Idx));
+    end;
+  end;
+
+  RefreshCamInfo;
+  EvaluatePreflight;
+
+  if (Application.MainForm <> nil) and (Application.MainForm is TMainForm) then
+    TMainForm(Application.MainForm).UpdateHeader;
 end;
 
 procedure TCaptureView.ChkGridClick(Sender: TObject);

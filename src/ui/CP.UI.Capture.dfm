@@ -955,7 +955,7 @@ object CaptureView: TCaptureView
         Width = 90
         Height = 28
         Anchors = [akTop, akRight]
-        Caption = 'Reconnect'
+        Caption = 'Connect'
         TabOrder = 0
         OnClick = BtnLiveReconnectClick
       end
