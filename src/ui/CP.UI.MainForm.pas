@@ -15,14 +15,12 @@ type
     BtnHeaderSession: TButton;
     LblHeaderCamera: TLabel;
     LblHeaderStorage: TLabel;
-    BtnHeaderSettings: TButton;
     PnlBottomBar: TPanel;
     LblBottomStatus: TLabel;
     LblBottomDb: TLabel;
     PnlContent: TPanel;
     procedure FormCreate(Sender: TObject);
     procedure BtnHeaderSessionClick(Sender: TObject);
-    procedure BtnHeaderSettingsClick(Sender: TObject);
   private
     FCaptureView: TCaptureView;
     FReviewView: TReviewView;
@@ -143,16 +141,10 @@ end;
 
 procedure TMainForm.BtnHeaderSessionClick(Sender: TObject);
 begin
-  NavigateTo('capture');
-  if Assigned(FCaptureView) then
-    FCaptureView.SelectTab(1);
-end;
-
-procedure TMainForm.BtnHeaderSettingsClick(Sender: TObject);
-begin
-  NavigateTo('capture');
-  if Assigned(FCaptureView) then
-    FCaptureView.ToggleCameraSettingsTab;
+  if Assigned(FDataHubView) and FDataHubView.Visible then
+    NavigateTo('capture')
+  else
+    NavigateTo('data');
 end;
 
 end.

@@ -3,8 +3,8 @@ unit CP.UI.Capture;
 interface
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.Math, System.IOUtils, Vcl.Forms, Vcl.Controls,
-  Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs,
+  Winapi.Windows, Winapi.ShellAPI, System.SysUtils, System.Classes, System.Math, System.IOUtils,
+  Vcl.Forms, Vcl.Controls, Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs, Vcl.ComCtrls, Vcl.FileCtrl,
   CP.UI.Theme, CP.Core.AppContext, CP.Imaging.Crop, CP.Validation.Preflight,
   CP.Camera.Intf, CP.Camera.Webcam;
 
@@ -20,8 +20,7 @@ type
     PnlSessionDetails: TPanel;
     LblSessTitle: TLabel;
     LblDate: TLabel;
-    EdtDate: TEdit;
-    BtnPickDate: TButton;
+    DtpDate: TDateTimePicker;
     LblOperator: TLabel;
     EdtOperator: TEdit;
     LblSite: TLabel;
@@ -47,6 +46,20 @@ type
     PnlComments: TPanel;
     LblComments: TLabel;
     MemoComments: TMemo;
+    PnlSeriesDetails: TPanel;
+    LblSeriesTitle: TLabel;
+    LblSeriesCountKey: TLabel;
+    LblSeriesCountVal: TLabel;
+    LblSeriesSpaceKey: TLabel;
+    LblSeriesSpaceVal: TLabel;
+    LblTargetFolder: TLabel;
+    EdtTargetFolder: TEdit;
+    BtnBrowseTarget: TButton;
+    LblServerFolder: TLabel;
+    EdtServerFolder: TEdit;
+    BtnBrowseServer: TButton;
+    BtnOpenCsv: TButton;
+    BtnSyncServer: TButton;
     ScrollBoxCam: TScrollBox;
     PnlDevInfo: TPanel;
     LblDevTitle: TLabel;
@@ -79,6 +92,9 @@ type
     CmbIso: TComboBox;
     LblResolution: TLabel;
     CmbResolution: TComboBox;
+    LblMaxSize: TLabel;
+    EdtMaxSize: TEdit;
+    BtnSaveMaxSize: TButton;
     PnlCenter: TPanel;
     PnlLiveTopBar: TPanel;
     LblLiveStatus: TLabel;
@@ -117,8 +133,12 @@ type
     BtnFinish: TButton;
     procedure BtnTabTrayDataClick(Sender: TObject);
     procedure BtnTabCamSettingsClick(Sender: TObject);
-    procedure BtnPickDateClick(Sender: TObject);
     procedure FormFieldChange(Sender: TObject);
+    procedure BtnBrowseTargetClick(Sender: TObject);
+    procedure BtnBrowseServerClick(Sender: TObject);
+    procedure BtnOpenCsvClick(Sender: TObject);
+    procedure BtnSyncServerClick(Sender: TObject);
+    procedure BtnSaveMaxSizeClick(Sender: TObject);
     procedure CmbInterfaceChange(Sender: TObject);
     procedure CmbWebcamDeviceChange(Sender: TObject);
     procedure BtnWebcamRefreshClick(Sender: TObject);
@@ -164,7 +184,7 @@ type
 implementation
 
 uses
-  CP.UI.DatePicker, CP.DB.Models;
+  CP.Config.Manager, CP.DB.Models;
 
 {$R *.dfm}
 
@@ -243,32 +263,144 @@ begin
   SelectTab(1);
 end;
 
-procedure TCaptureView.BtnPickDateClick(Sender: TObject);
-var
-  DStr: string;
-begin
-  if TDatePickerModal.PickDate(DStr) then
-  begin
-    EdtDate.Text := DStr;
-    EvaluatePreflight;
-  end;
-end;
-
 procedure TCaptureView.FormFieldChange(Sender: TObject);
 begin
   EvaluatePreflight;
 end;
 
-procedure TCaptureView.RefreshData;
+procedure TCaptureView.BtnBrowseTargetClick(Sender: TObject);
+var
+  Dir: string;
+begin
+  Dir := EdtTargetFolder.Text;
+  if SelectDirectory('Select Target Folder', '', Dir) then
+  begin
+    EdtTargetFolder.Text := Dir;
+    GetConfig.SetString('storage', 'primary_path', Dir);
+    GetConfig.SaveToFile;
+    RefreshData;
+  end;
+end;
+
+procedure TCaptureView.BtnBrowseServerClick(Sender: TObject);
+var
+  Dir: string;
+begin
+  Dir := EdtServerFolder.Text;
+  if SelectDirectory('Select Target Server Folder / Share', '', Dir) then
+  begin
+    EdtServerFolder.Text := Dir;
+    GetConfig.SetString('storage', 'server_sync_path', Dir);
+    GetConfig.SaveToFile;
+  end;
+end;
+
+procedure TCaptureView.BtnOpenCsvClick(Sender: TObject);
 var
   Ctx: TCPAppContext;
+  CsvPath: string;
 begin
   Ctx := GetAppContext;
   if (Ctx <> nil) and (Ctx.ActiveSession.Id <> '') then
   begin
-    EdtDate.Text := Ctx.ActiveSession.DateStr;
+    CsvPath := TPath.Combine(Ctx.SessionPaths.SessionDir, EdtHole.Text + '.csv');
+    if not TFile.Exists(CsvPath) then
+      CsvPath := TPath.Combine(Ctx.SessionPaths.SessionDir, 'session_report.csv');
+    if TFile.Exists(CsvPath) then
+      ShellExecute(0, 'open', PChar(CsvPath), nil, nil, SW_SHOWNORMAL)
+    else
+      ShowMessage('Belum ada file CSV untuk session ini: ' + CsvPath);
+  end
+  else
+    ShowMessage('Pilih atau buat Session aktif terlebih dahulu.');
+end;
+
+procedure TCaptureView.BtnSyncServerClick(Sender: TObject);
+var
+  Ctx: TCPAppContext;
+  SrcDir, DstDir: string;
+begin
+  DstDir := Trim(EdtServerFolder.Text);
+  if (DstDir = '') or (not TDirectory.Exists(DstDir)) then
+  begin
+    ShowMessage('Target Server Folder belum ditentukan atau tidak dapat diakses.');
+    Exit;
+  end;
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.ActiveSession.Id <> '') and TDirectory.Exists(Ctx.SessionPaths.JpgDir) then
+  begin
+    try
+      SrcDir := Ctx.SessionPaths.JpgDir;
+      TDirectory.Copy(SrcDir, TPath.Combine(DstDir, Ctx.ActiveSession.Site));
+      ShowMessage('Sinkronisasi folder session ke server berhasil.');
+    except
+      on E: Exception do
+        ShowMessage('Gagal sinkronisasi ke server: ' + E.Message);
+    end;
+  end
+  else
+    ShowMessage('Tidak ada foto session aktif untuk disinkronkan.');
+end;
+
+procedure TCaptureView.BtnSaveMaxSizeClick(Sender: TObject);
+var
+  Val: Double;
+begin
+  Val := StrToFloatDef(EdtMaxSize.Text, 10.0);
+  if Val < 0.5 then Val := 0.5;
+  GetConfig.SetFloat('imaging', 'max_photo_size_mb', Val);
+  GetConfig.SaveToFile;
+  ShowMessage(Format('Max Photo Size disimpan: %.1f MB', [Val]));
+end;
+
+procedure TCaptureView.RefreshData;
+var
+  Ctx: TCPAppContext;
+  AvailMB: Double;
+  PList: TList;
+  Y, M, D: Word;
+begin
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.ActiveSession.Id <> '') then
+  begin
     EdtOperator.Text := Ctx.ActiveSession.OperatorName;
     EdtSite.Text := Ctx.ActiveSession.Site;
+    EdtTargetFolder.Text := Ctx.SessionPaths.SessionDir;
+
+    if Length(Ctx.ActiveSession.DateStr) >= 8 then
+    begin
+      try
+        Y := StrToIntDef(Copy(Ctx.ActiveSession.DateStr, 1, 4), 2026);
+        M := StrToIntDef(Copy(Ctx.ActiveSession.DateStr, 5, 2), 10);
+        D := StrToIntDef(Copy(Ctx.ActiveSession.DateStr, 7, 2), 5);
+        DtpDate.Date := EncodeDate(Y, M, D);
+      except
+        DtpDate.Date := Now;
+      end;
+    end
+    else
+      DtpDate.Date := Now;
+  end
+  else
+    DtpDate.Date := Now;
+
+  EdtServerFolder.Text := GetConfig.GetString('storage', 'server_sync_path', '');
+  EdtMaxSize.Text := Format('%.1f', [GetConfig.GetFloat('imaging', 'max_photo_size_mb', 10.0)]);
+
+  if (Ctx <> nil) and (Ctx.Storage <> nil) then
+  begin
+    AvailMB := Ctx.Storage.GetAvailableSpaceMB;
+    LblSeriesSpaceVal.Caption := Format('%.0f MB free', [AvailMB]);
+  end;
+
+  if (Ctx <> nil) and (Ctx.PhotoRepo <> nil) and (Ctx.ActiveSession.Id <> '') then
+  begin
+    PList := Ctx.PhotoRepo.GetPhotosForSession(Ctx.ActiveSession.Id);
+    if PList <> nil then
+    begin
+      LblSeriesCountVal.Caption := IntToStr(PList.Count);
+      PList.Free;
+    end;
   end;
 
   RefreshCamInfo;

@@ -46,8 +46,17 @@ object MainForm: TMainForm
       Color = clWhite
       ParentBackground = False
       TabOrder = 0
+      object BtnHeaderSession: TButton
+        Left = 150
+        Top = 8
+        Width = 150
+        Height = 28
+        Caption = 'Session: [None]'
+        TabOrder = 0
+        OnClick = BtnHeaderSessionClick
+      end
       object LblHeaderCamera: TLabel
-        Left = 200
+        Left = 320
         Top = 13
         Width = 84
         Height = 15
@@ -60,29 +69,11 @@ object MainForm: TMainForm
         ParentFont = False
       end
       object LblHeaderStorage: TLabel
-        Left = 320
+        Left = 440
         Top = 13
         Width = 95
         Height = 15
         Caption = 'Storage: Checking'
-      end
-      object BtnHeaderSession: TButton
-        Left = 20
-        Top = 8
-        Width = 150
-        Height = 28
-        Caption = 'Session: [None]'
-        TabOrder = 0
-        OnClick = BtnHeaderSessionClick
-      end
-      object BtnHeaderSettings: TButton
-        Left = 460
-        Top = 8
-        Width = 140
-        Height = 28
-        Caption = 'Camera Settings'
-        TabOrder = 1
-        OnClick = BtnHeaderSettingsClick
       end
     end
   end
