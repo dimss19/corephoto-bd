@@ -3,7 +3,7 @@ unit CP.Imaging.Processor;
 interface
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.IOUtils, System.JSON, Vcl.Graphics,
+  Winapi.Windows, System.SysUtils, System.Classes, System.Math, System.IOUtils, System.JSON, Vcl.Graphics,
   Vcl.Imaging.jpeg,
   CP.DB.Models, CP.DB.Repositories, CP.Storage.Manager, CP.Imaging.Crop,
   CP.Imaging.Raw, CP.Imaging.Thumbnail;
@@ -58,34 +58,12 @@ function TCPImageProcessor.AddMetadataSlateBanner(
   const OperatorName, TimestampStr: string
 ): TBitmap;
 var
-  W, H, BannerH, FontSize, YPos, XRight, TextW: Integer;
+  W, H, BannerH, FontSize, YPos, XRight, TextW, LeftW: Integer;
   LeftText, RightText, OpText: string;
+  TwoLines: Boolean;
 begin
   W := Img.Width;
   H := Img.Height;
-  BannerH := Round(H * 0.08);
-  if BannerH < 18 then BannerH := 18;
-
-  Result := TBitmap.Create;
-  Result.PixelFormat := pf24bit;
-  Result.SetSize(W, H);
-  Result.Canvas.Draw(0, 0, Img);
-
-  // White banner background
-  Result.Canvas.Brush.Color := clWhite;
-  Result.Canvas.Pen.Color := RGB(210, 215, 220);
-  Result.Canvas.Pen.Width := 1;
-  Result.Canvas.Rectangle(0, H - BannerH, W, H);
-  Result.Canvas.MoveTo(0, H - BannerH);
-  Result.Canvas.LineTo(W, H - BannerH);
-
-  FontSize := Round(BannerH * 0.45);
-  if FontSize < 8 then FontSize := 8;
-
-  Result.Canvas.Font.Name := 'Segoe UI';
-  Result.Canvas.Font.Size := FontSize;
-  Result.Canvas.Font.Color := RGB(15, 20, 25);
-  Result.Canvas.Brush.Style := bsClear;
 
   LeftText := Format('HOLE ID: %s  TRAY ID: %s  FROM: %s  TO: %s',
     [HoleId, TrayId, PyFmtG(FromVal), PyFmtG(ToVal)]);
@@ -95,13 +73,80 @@ begin
     OpText := Format('OPERATOR: %s  ', [Trim(OperatorName)]);
   RightText := OpText + 'TIMESTAMP: ' + TimestampStr;
 
-  YPos := H - BannerH + (BannerH - FontSize) div 2;
-  Result.Canvas.TextOut(8, YPos, LeftText);
+  Result := TBitmap.Create;
+  Result.PixelFormat := pf24bit;
+  Result.SetSize(W, H);
+  Result.Canvas.Draw(0, 0, Img);
 
+  Result.Canvas.Font.Name := 'Segoe UI';
+  Result.Canvas.Brush.Style := bsClear;
+
+  // 1. Initial banner calculation (default 8% of image height)
+  BannerH := Round(H * 0.08);
+  if BannerH < 24 then BannerH := 24;
+
+  FontSize := Round(BannerH * 0.42);
+  if FontSize < 8 then FontSize := 8;
+  Result.Canvas.Font.Size := FontSize;
+
+  LeftW := Result.Canvas.TextWidth(LeftText);
   TextW := Result.Canvas.TextWidth(RightText);
-  XRight := W - TextW - 8;
-  if XRight < 8 then XRight := 8;
-  Result.Canvas.TextOut(XRight, YPos, RightText);
+
+  // 2. Check if text fits on a single line with safe margins
+  TwoLines := False;
+  if LeftW + TextW + 24 > W then
+  begin
+    // Try reducing font size down to 8pt
+    while (FontSize > 8) and (LeftW + TextW + 24 > W) do
+    begin
+      Dec(FontSize);
+      Result.Canvas.Font.Size := FontSize;
+      LeftW := Result.Canvas.TextWidth(LeftText);
+      TextW := Result.Canvas.TextWidth(RightText);
+    end;
+
+    // If still too wide for single line, switch to 2-line layout
+    if LeftW + TextW + 20 > W then
+    begin
+      TwoLines := True;
+      BannerH := Max(Round(H * 0.12), 44);
+      FontSize := Round(BannerH * 0.28);
+      if FontSize < 8 then FontSize := 8;
+      Result.Canvas.Font.Size := FontSize;
+    end;
+  end;
+
+  // 3. Draw white background rectangle with light gray separator
+  Result.Canvas.Brush.Color := clWhite;
+  Result.Canvas.Brush.Style := bsSolid;
+  Result.Canvas.Pen.Color := RGB(210, 215, 220);
+  Result.Canvas.Pen.Width := 1;
+  Result.Canvas.Rectangle(0, H - BannerH, W, H);
+  Result.Canvas.MoveTo(0, H - BannerH);
+  Result.Canvas.LineTo(W, H - BannerH);
+
+  Result.Canvas.Font.Color := RGB(15, 20, 25);
+  Result.Canvas.Brush.Style := bsClear;
+
+  if TwoLines then
+  begin
+    // Clean two-line layout: Line 1 = geological info, Line 2 = operator & time
+    YPos := H - BannerH + 4;
+    Result.Canvas.TextOut(8, YPos, LeftText);
+    YPos := YPos + FontSize + 6;
+    Result.Canvas.TextOut(8, YPos, RightText);
+  end
+  else
+  begin
+    // Single-line layout: LeftText on left, RightText on right
+    YPos := H - BannerH + (BannerH - FontSize) div 2;
+    Result.Canvas.TextOut(8, YPos, LeftText);
+
+    XRight := W - Result.Canvas.TextWidth(RightText) - 8;
+    if XRight < LeftW + 12 then
+      XRight := LeftW + 12;
+    Result.Canvas.TextOut(XRight, YPos, RightText);
+  end;
 end;
 
 procedure TCPImageProcessor.AppendHoleCSV(

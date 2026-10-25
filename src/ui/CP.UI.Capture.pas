@@ -226,6 +226,8 @@ begin
   SelectTab(0);
   RefreshWebcamList;
   RefreshCamInfo;
+  CmbResolution.ItemIndex := 1;
+  CmbResolutionChange(nil);
   EvaluatePreflight;
 end;
 
@@ -1074,14 +1076,33 @@ end;
 procedure TCaptureView.CmbResolutionChange(Sender: TObject);
 var
   Choice: string;
+  W, H: Integer;
 begin
   Choice := CmbResolution.Text;
   if Pos('1920 x 1080', Choice) > 0 then
-    GetCameraManager.SetResolution(1920, 1080, '1080p')
+  begin
+    W := 1920; H := 1080;
+    GetCameraManager.SetResolution(1920, 1080, '1080p');
+  end
   else if Pos('1280 x 720', Choice) > 0 then
-    GetCameraManager.SetResolution(1280, 720, '720p')
+  begin
+    W := 1280; H := 720;
+    GetCameraManager.SetResolution(1280, 720, '720p');
+  end
   else
+  begin
+    W := 1920; H := 1080;
     GetCameraManager.SetResolution(5184, 3456, 'best_native');
+  end;
+
+  if (GetAppContext <> nil) and (GetAppContext.Camera <> nil) and (GetAppContext.Camera.ActiveAdapter <> nil) then
+  begin
+    GetAppContext.Camera.ActiveAdapter.SetSetting('resolution_w', IntToStr(W));
+    GetAppContext.Camera.ActiveAdapter.SetSetting('resolution_h', IntToStr(H));
+  end;
+
+  EvaluatePreflight;
+  PaintLiveView.Invalidate;
 end;
 
 end.

@@ -32,6 +32,7 @@ type
     FMediaControl: IMediaControl;
 
     function InitDirectShow(DeviceIndex: Integer): Boolean;
+    procedure ConfigurePinResolution(ReqW, ReqH: Integer);
     procedure TeardownDirectShow;
     function GenerateStandbyFrame(W, H: Integer): TBitmap;
   public
@@ -219,6 +220,9 @@ begin
   if Succeeded(HR) and (FNullRenderer <> nil) then
     FGraphBuilder.AddFilter(FNullRenderer, 'NullRenderer');
 
+  // 4b. Configure requested resolution on video capture pin
+  ConfigurePinResolution(FTargetW, FTargetH);
+
   // 5. Connect capture stream: VideoSource -> SampleGrabber -> NullRenderer
   HR := FCaptureGraphBuilder.RenderStream(@PIN_CATEGORY_CAPTURE, @MEDIATYPE_Video, FVideoSource, FGrabberFilter, FNullRenderer);
   if Failed(HR) then
@@ -237,6 +241,45 @@ begin
   begin
     Log.Warn(Format('DirectShow RenderStream failed (HRESULT: 0x%x)', [HR]));
     TeardownDirectShow;
+  end;
+end;
+
+procedure TWebcamAdapter.ConfigurePinResolution(ReqW, ReqH: Integer);
+var
+  StreamConfig: IAMStreamConfig;
+  pVIH: PVideoInfoHeader;
+  MT: PAMMediaType;
+  HR: HRESULT;
+begin
+  if (FCaptureGraphBuilder = nil) or (FVideoSource = nil) or (ReqW <= 0) or (ReqH <= 0) then Exit;
+
+  HR := FCaptureGraphBuilder.FindInterface(@PIN_CATEGORY_CAPTURE, @MEDIATYPE_Video, FVideoSource, IID_IAMStreamConfig, StreamConfig);
+  if Failed(HR) or (StreamConfig = nil) then
+    HR := FCaptureGraphBuilder.FindInterface(@PIN_CATEGORY_PREVIEW, @MEDIATYPE_Video, FVideoSource, IID_IAMStreamConfig, StreamConfig);
+
+  if Succeeded(HR) and (StreamConfig <> nil) then
+  begin
+    MT := nil;
+    HR := StreamConfig.GetFormat(MT);
+    if Succeeded(HR) and (MT <> nil) then
+    begin
+      try
+        if (MT^.formattype = FORMAT_VideoInfo) and (MT^.pbFormat <> nil) then
+        begin
+          pVIH := PVideoInfoHeader(MT^.pbFormat);
+          pVIH^.bmiHeader.biWidth := ReqW;
+          pVIH^.bmiHeader.biHeight := ReqH;
+          pVIH^.bmiHeader.biSizeImage := ((ReqW * 24 + 31) and not 31) div 8 * ReqH;
+          HR := StreamConfig.SetFormat(MT^);
+          if Succeeded(HR) then
+            Log.Info(Format('DirectShow pin format configured to %dx%d', [ReqW, ReqH]));
+        end;
+      finally
+        if MT^.cbFormat <> 0 then
+          CoTaskMemFree(MT^.pbFormat);
+        CoTaskMemFree(MT);
+      end;
+    end;
   end;
 end;
 
@@ -459,13 +502,27 @@ end;
 
 function TWebcamAdapter.Capture: TCaptureResult;
 var
-  Bmp: TBitmap;
+  Bmp, ScaledBmp: TBitmap;
   Png: TPngImage;
   MS: TMemoryStream;
 begin
   FState := csCapturing;
   Bmp := GetLiveFrame;
+  if Bmp = nil then
+    Bmp := GenerateStandbyFrame(FTargetW, FTargetH);
+
   try
+    // Ensure capture output matches target resolution (scaling up if hardware stream is lower)
+    if (FTargetW > 0) and (FTargetH > 0) and ((Bmp.Width <> FTargetW) or (Bmp.Height <> FTargetH)) then
+    begin
+      ScaledBmp := TBitmap.Create;
+      ScaledBmp.PixelFormat := pf24bit;
+      ScaledBmp.SetSize(FTargetW, FTargetH);
+      ScaledBmp.Canvas.StretchDraw(Rect(0, 0, FTargetW, FTargetH), Bmp);
+      Bmp.Free;
+      Bmp := ScaledBmp;
+    end;
+
     Png := TPngImage.Create;
     try
       Png.Assign(Bmp);
@@ -496,13 +553,63 @@ begin
 end;
 
 function TWebcamAdapter.SetSetting(const Key, Value: string): Boolean;
+var
+  W, H: Integer;
+  DevId: string;
+  Parts: TArray<string>;
 begin
   Result := True;
+  if (Key = 'resolution') or (Key = 'target_resolution') then
+  begin
+    Parts := Value.Split(['x', 'X', ' ']);
+    if Length(Parts) >= 2 then
+    begin
+      W := StrToIntDef(Trim(Parts[0]), 1920);
+      H := StrToIntDef(Trim(Parts[1]), 1080);
+      if (W > 0) and (H > 0) then
+      begin
+        FTargetW := W;
+        FTargetH := H;
+        if FState in [csReady, csStreaming] then
+        begin
+          DevId := FDeviceId;
+          Disconnect;
+          Connect(DevId);
+        end;
+      end;
+    end;
+  end
+  else if Key = 'resolution_w' then
+  begin
+    W := StrToIntDef(Value, 1920);
+    if W > 0 then FTargetW := W;
+  end
+  else if Key = 'resolution_h' then
+  begin
+    H := StrToIntDef(Value, 1080);
+    if H > 0 then
+    begin
+      FTargetH := H;
+      if FState in [csReady, csStreaming] then
+      begin
+        DevId := FDeviceId;
+        Disconnect;
+        Connect(DevId);
+      end;
+    end;
+  end;
 end;
 
 function TWebcamAdapter.GetSetting(const Key: string): string;
 begin
-  Result := '';
+  if Key = 'resolution' then
+    Result := Format('%dx%d', [FTargetW, FTargetH])
+  else if Key = 'resolution_w' then
+    Result := IntToStr(FTargetW)
+  else if Key = 'resolution_h' then
+    Result := IntToStr(FTargetH)
+  else
+    Result := '';
 end;
 
 end.
