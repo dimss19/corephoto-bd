@@ -16,7 +16,6 @@ type
     FCameraIP: string;
     FCameraPort: Integer;
     FIsIpConnected: Boolean;
-    FIpProtocol: string;
     FLock: TCriticalSection;
     function DiscoverDefaultTetherDir: string;
   public
@@ -113,10 +112,10 @@ begin
       Addr.sin_port := htons(Port);
       Addr.sin_addr.S_addr := inet_addr(PAnsiChar(AnsiString(IP)));
 
-      connect(Sock, TSockAddr(Addr), SizeOf(Addr));
+      Winapi.Winsock2.connect(Sock, TSockAddr(Addr), SizeOf(Addr));
 
       FD_ZERO(FD);
-      FD_SET(Sock, FD);
+      _FD_SET(Sock, FD);
       TimeVal.tv_sec := Trunc(TimeoutSec);
       TimeVal.tv_usec := Trunc(Frac(TimeoutSec) * 1000000);
 
