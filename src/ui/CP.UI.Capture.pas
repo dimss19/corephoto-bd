@@ -3,10 +3,10 @@ unit CP.UI.Capture;
 interface
 
 uses
-  Winapi.Windows, System.SysUtils, System.Classes, System.Math, Vcl.Forms, Vcl.Controls,
+  Winapi.Windows, System.SysUtils, System.Classes, System.Math, System.IOUtils, Vcl.Forms, Vcl.Controls,
   Vcl.StdCtrls, Vcl.ExtCtrls, Vcl.Graphics, Vcl.Dialogs,
   CP.UI.Theme, CP.Core.AppContext, CP.Imaging.Crop, CP.Validation.Preflight,
-  CP.Camera.Webcam;
+  CP.Camera.Intf, CP.Camera.Webcam;
 
 type
   TCaptureView = class(TFrame)
@@ -448,7 +448,11 @@ begin
   else
   begin
     LblPreflightChecklist.Caption := 'Camera '#10003'  '#183'  Session '#10003'  '#183'  Hole ID '#10003'  '#183'  Tray ID '#10003'  '#183'  Interval '#10003'  '#183'  Storage '#10003'  '#183'  Crop X';
-    LblPreflightVerdict.Caption := 'CANNOT CAPTURE: ' + Res.BlockingReason;
+    var ErrList: TArray<string> := Res.SummaryErrors;
+    if Length(ErrList) > 0 then
+      LblPreflightVerdict.Caption := 'CANNOT CAPTURE: ' + ErrList[0]
+    else
+      LblPreflightVerdict.Caption := 'CANNOT CAPTURE: Pre-flight check failed.';
     LblPreflightVerdict.Font.Color := COLOR_ERROR;
     BtnCapture.Enabled := True; // Let operator click and see remedy dialog
   end;
@@ -573,8 +577,7 @@ procedure TCaptureView.BtnCaptureClick(Sender: TObject);
 var
   Ctx: TCPAppContext;
   CR: TCropRegion;
-  FVal, TVal: Double;
-  CapRes: TCaptureResult;
+  FVal, TVal, FileSizeMB: Double;
   Photo: TPhotoModel;
 begin
   Ctx := GetAppContext;
@@ -585,8 +588,12 @@ begin
   try
     Photo := Ctx.ExecuteCapture(EdtHole.Text, EdtTray.Text, FVal, TVal, CR);
 
-    LblDimVal.Caption := Format('%dx%d px', [Photo.CroppedWidth, Photo.CroppedHeight]);
-    LblSizeVal.Caption := Format('%.2f MB', [Photo.FileSize / (1024.0 * 1024.0)]);
+    LblDimVal.Caption := Format('%dx%d px', [Photo.CropW, Photo.CropH]);
+    if (Photo.JpgPath <> '') and TFile.Exists(Photo.JpgPath) then
+      FileSizeMB := TFile.GetSize(Photo.JpgPath) / (1024.0 * 1024.0)
+    else
+      FileSizeMB := 0.0;
+    LblSizeVal.Caption := Format('%.2f MB', [FileSizeMB]);
     LblCapVal.Caption := 'Captured (OK)';
     LblDestVal.Caption := ExtractFileName(Photo.JpgPath);
 
