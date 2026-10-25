@@ -4,7 +4,8 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.IOUtils, System.JSON,
-  CP.Storage.Manager, CP.DB.Manager, CP.DB.Repositories;
+  System.Generics.Collections,
+  CP.DB.Models, CP.Storage.Manager, CP.DB.Manager, CP.DB.Repositories;
 
 type
   TCPDiagnosticsManager = class

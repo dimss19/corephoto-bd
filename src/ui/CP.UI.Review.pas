@@ -3,7 +3,7 @@ unit CP.UI.Review;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
+  System.SysUtils, System.Classes, System.Generics.Collections, Vcl.Forms, Vcl.Controls, Vcl.StdCtrls,
   Vcl.ExtCtrls, Vcl.Graphics, CP.UI.Theme, CP.Core.AppContext, CP.DB.Models;
 
 type
