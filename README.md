@@ -2,6 +2,11 @@
 
 Aplikasi Desktop Native Geological Core Photo Management System (Delphi / Object Pascal Edition).
 
+[![Latest Release](https://img.shields.io/github/v/release/dimss19/corephoto-bd?color=orange&label=Latest%20Release)](https://github.com/dimss19/corephoto-bd/releases/latest)
+[![Download CorePhoto.exe](https://img.shields.io/badge/Download-CorePhoto.exe%20(v1.0.0)-22c55e?style=for-the-badge&logo=windows)](https://github.com/dimss19/corephoto-bd/releases/download/v1.0.0/CorePhoto.exe)
+
+> **Unduh Langsung:** [CorePhoto.exe (v1.0.0 Standalone)](https://github.com/dimss19/corephoto-bd/releases/download/v1.0.0/CorePhoto.exe) (~9.3 MB) siap pakai langsung jalan tanpa instalasi runtime tambahan. Kunjungi halaman [GitHub Releases](https://github.com/dimss19/corephoto-bd/releases) untuk changelog lengkap.
+
 ## Ringkasan Proyek
 **CorePhoto BD** adalah versi Windows native berkonsumsi memori rendah (< 10 MB standalone executable) yang di-porting dari CorePhoto Python dengan paritas data, fungsionalitas, visual, dan pengujian 100%.
 
