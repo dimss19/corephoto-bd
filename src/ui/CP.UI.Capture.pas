@@ -101,6 +101,7 @@ type
     LblLiveStatus: TLabel;
     BtnCropToggle: TButton;
     BtnLiveReconnect: TButton;
+    BtnAutoFocus: TButton;
     PaintLiveView: TPaintBox;
     PnlPreflightBanner: TPanel;
     LblPreflightChecklist: TLabel;
@@ -147,6 +148,8 @@ type
     procedure BtnDevReconnectClick(Sender: TObject);
     procedure BtnCropToggleClick(Sender: TObject);
     procedure BtnLiveReconnectClick(Sender: TObject);
+    procedure BtnAutoFocusClick(Sender: TObject);
+    procedure CmbFocusingChange(Sender: TObject);
     procedure PaintLiveViewPaint(Sender: TObject);
     procedure ChkGridClick(Sender: TObject);
     procedure BtnZoomClick(Sender: TObject);
@@ -165,6 +168,8 @@ type
     FLiveViewActive: Boolean;
     FIsPreviewingCapture: Boolean;
     FInLiveTimer: Boolean;
+    FAFLocked: Boolean;
+    FAFLockTicks: Cardinal;
     FPendingPhoto: TPhotoModel;
     FTimerLiveView: TTimer;
     FLastFrame: TBitmap;
@@ -208,6 +213,8 @@ begin
   FLiveViewActive := True;
   FIsPreviewingCapture := False;
   FInLiveTimer := False;
+  FAFLocked := False;
+  FAFLockTicks := 0;
   FPendingPhoto := Default(TPhotoModel);
   FLastFrame := TBitmap.Create;
   FBufferBmp := TBitmap.Create;
@@ -611,6 +618,44 @@ begin
     TMainForm(Application.MainForm).UpdateHeader;
 end;
 
+procedure TCaptureView.BtnAutoFocusClick(Sender: TObject);
+var
+  Ctx: TCPAppContext;
+  Success: Boolean;
+begin
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.Camera <> nil) and Ctx.Camera.IsReady then
+  begin
+    Success := Ctx.Camera.TriggerAutoFocus;
+    if Success then
+    begin
+      FAFLocked := True;
+      FAFLockTicks := GetTickCount;
+      Winapi.Windows.Beep(1760, 90); // 1760 Hz (A6), classic DSLR AF confirmation tone
+      PaintLiveView.Invalidate;
+    end
+    else
+    begin
+      ShowMessage('Autofokus gagal atau kamera dalam mode Manual Focus (MF).'#13#10 +
+                  'Pastikan saklar (switch) fokus pada lensa fisik DSLR disetel ke posisi [AF].');
+    end;
+  end
+  else
+    ShowMessage('Kamera belum terhubung atau Live View belum aktif.');
+end;
+
+procedure TCaptureView.CmbFocusingChange(Sender: TObject);
+var
+  Ctx: TCPAppContext;
+  IsAuto: Boolean;
+begin
+  // Index 0: One-Shot, Index 1: AI Focus, Index 2: Manual
+  IsAuto := CmbFocusing.ItemIndex in [0, 1];
+  Ctx := GetAppContext;
+  if (Ctx <> nil) and (Ctx.Camera <> nil) then
+    Ctx.Camera.SetAutoFocus(IsAuto);
+end;
+
 procedure TCaptureView.ChkGridClick(Sender: TObject);
 begin
   FGridEnabled := ChkGrid.Checked;
@@ -912,6 +957,31 @@ begin
       FBufferBmp.Canvas.TextOut(CX1 + 10, CY1 + 8,
         Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
     end;
+
+    // 5. Auto Focus Reticle & HUD Lock Indicator
+    if FAFLocked and (GetTickCount - FAFLockTicks < 3500) then
+    begin
+      FBufferBmp.Canvas.Pen.Style := psSolid;
+      FBufferBmp.Canvas.Pen.Color := RGB(34, 197, 94); // Neon Green
+      FBufferBmp.Canvas.Pen.Width := 2;
+      FBufferBmp.Canvas.Brush.Style := bsClear;
+
+      // Draw center AF bracket (64x64) and crosshair
+      FBufferBmp.Canvas.Rectangle(OffX + DispW div 2 - 32, OffY + DispH div 2 - 32,
+                                   OffX + DispW div 2 + 32, OffY + DispH div 2 + 32);
+      FBufferBmp.Canvas.MoveTo(OffX + DispW div 2 - 12, OffY + DispH div 2);
+      FBufferBmp.Canvas.LineTo(OffX + DispW div 2 + 12, OffY + DispH div 2);
+      FBufferBmp.Canvas.MoveTo(OffX + DispW div 2, OffY + DispH div 2 - 12);
+      FBufferBmp.Canvas.LineTo(OffX + DispW div 2, OffY + DispH div 2 + 12);
+
+      // AF lock indicator label
+      FBufferBmp.Canvas.Font.Name := 'Segoe UI';
+      FBufferBmp.Canvas.Font.Size := 9;
+      FBufferBmp.Canvas.Font.Style := [fsBold];
+      FBufferBmp.Canvas.Font.Color := RGB(34, 197, 94);
+      FBufferBmp.Canvas.Brush.Style := bsClear;
+      FBufferBmp.Canvas.TextOut(OffX + DispW div 2 - 42, OffY + DispH div 2 + 38, '[ AF LOCKED ]');
+    end;
   end;
 
   // Prominent frozen preview badge (parity with Python capture.py _display_still_photo_on_canvas)
@@ -952,6 +1022,17 @@ begin
   begin
     ShowMessage('Sesi aktif belum dipilih. Buat atau pilih sesi terlebih dahulu.');
     Exit;
+  end;
+
+  // Auto-focus lock before shutter release if One-Shot or AI Focus mode is selected
+  if (CmbFocusing.ItemIndex in [0, 1]) and (Ctx.Camera <> nil) and Ctx.Camera.IsReady then
+  begin
+    if Ctx.Camera.TriggerAutoFocus then
+    begin
+      FAFLocked := True;
+      FAFLockTicks := GetTickCount;
+      Winapi.Windows.Beep(1760, 50);
+    end;
   end;
 
   CR := GetCurrentCropRegion;

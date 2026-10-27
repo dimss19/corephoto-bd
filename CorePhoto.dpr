@@ -18,6 +18,7 @@ uses
   CP.Imaging.Crop in 'src\imaging\CP.Imaging.Crop.pas',
   CP.Imaging.Raw in 'src\imaging\CP.Imaging.Raw.pas',
   CP.Imaging.Thumbnail in 'src\imaging\CP.Imaging.Thumbnail.pas',
+  CP.Imaging.Exif in 'src\imaging\CP.Imaging.Exif.pas',
   CP.Imaging.Processor in 'src\imaging\CP.Imaging.Processor.pas',
   CP.Validation.Interval in 'src\validation\CP.Validation.Interval.pas',
   CP.Validation.Filename in 'src\validation\CP.Validation.Filename.pas',

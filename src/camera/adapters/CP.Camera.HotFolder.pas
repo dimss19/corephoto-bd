@@ -29,6 +29,8 @@ type
     function Capture: TCaptureResult;
     function SetSetting(const Key: string; const Value: string): Boolean;
     function GetSetting(const Key: string): string;
+    function TriggerAutoFocus: Boolean;
+    function SetAutoFocus(Enable: Boolean): Boolean;
   end;
 
 implementation
@@ -128,5 +130,16 @@ end;
 
 function THotFolderAdapter.SetSetting(const Key, Value: string): Boolean; begin Result := True; end;
 function THotFolderAdapter.GetSetting(const Key: string): string; begin Result := ''; end;
+
+function THotFolderAdapter.TriggerAutoFocus: Boolean;
+begin
+  Log.Info('Hot-Folder Ingestion: Simulated hardware autofocus acknowledged.');
+  Result := True;
+end;
+
+function THotFolderAdapter.SetAutoFocus(Enable: Boolean): Boolean;
+begin
+  Result := True;
+end;
 
 end.

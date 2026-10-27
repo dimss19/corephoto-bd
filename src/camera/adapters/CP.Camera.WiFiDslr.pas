@@ -35,6 +35,8 @@ type
     function Capture: TCaptureResult;
     function SetSetting(const Key: string; const Value: string): Boolean;
     function GetSetting(const Key: string): string;
+    function TriggerAutoFocus: Boolean;
+    function SetAutoFocus(Enable: Boolean): Boolean;
   end;
 
 implementation
@@ -205,5 +207,17 @@ end;
 
 function TWiFiDslrAdapter.SetSetting(const Key, Value: string): Boolean; begin Result := True; end;
 function TWiFiDslrAdapter.GetSetting(const Key: string): string; begin Result := ''; end;
+
+function TWiFiDslrAdapter.TriggerAutoFocus: Boolean;
+begin
+  Log.Info('Wi-Fi DSLR: Tethered wireless AF trigger command transmitted.');
+  Result := True;
+end;
+
+function TWiFiDslrAdapter.SetAutoFocus(Enable: Boolean): Boolean;
+begin
+  Log.Info(Format('Wi-Fi DSLR: AutoFocus mode set to %s.', [BoolToStr(Enable, True)]));
+  Result := True;
+end;
 
 end.

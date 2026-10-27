@@ -129,15 +129,25 @@ begin
     Sec.AddPair('resolution_mode', 'best_native');
     Sec.AddPair('fps', TJSONNumber.Create(30));
     Sec.AddPair('device_id', '0');
+    Sec.AddPair('camera_maker', 'Canon');
+    Sec.AddPair('camera_model', 'Canon EOS 60D');
+    Sec.AddPair('f_stop', 'f/10');
+    Sec.AddPair('exposure_time', '1/3 sec.');
+    Sec.AddPair('iso_speed', 'ISO-200');
     FRoot.AddPair('camera', Sec);
   end;
   if FRoot.Values['imaging'] = nil then
   begin
     Sec := TJSONObject.Create;
-    Sec.AddPair('crop_width', TJSONNumber.Create(300));
-    Sec.AddPair('crop_height', TJSONNumber.Create(200));
+    Sec.AddPair('crop_width', TJSONNumber.Create(4276));
+    Sec.AddPair('crop_height', TJSONNumber.Create(1998));
     Sec.AddPair('jpg_quality', TJSONNumber.Create(95));
+    Sec.AddPair('min_photo_size_mb', TJSONNumber.Create(5.0));
     Sec.AddPair('max_photo_size_mb', TJSONNumber.Create(10.0));
+    Sec.AddPair('max_raw_size_mb', TJSONNumber.Create(5.0));
+    Sec.AddPair('max_thumbnail_size_mb', TJSONNumber.Create(4.0));
+    Sec.AddPair('dpi', TJSONNumber.Create(72));
+    Sec.AddPair('bit_depth', TJSONNumber.Create(24));
     Sec.AddPair('preserve_raw', TJSONBool.Create(True));
     FRoot.AddPair('imaging', Sec);
   end;

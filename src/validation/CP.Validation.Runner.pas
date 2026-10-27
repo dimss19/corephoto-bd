@@ -74,6 +74,12 @@ begin
       CalcMd5 := TRawHandler.CalculateMD5(Photo.RawPath);
       RawOk := (Photo.Md5Raw = '') or (CalcMd5 = Photo.Md5Raw);
       RecordCheck('RAW_MD5_INTEGRITY', RawOk, 'Integritas RAW cocok');
+
+      // 3b. RAW file size validation (maks 5MB)
+      MaxMB := GetConfig.GetFloat('imaging', 'max_raw_size_mb', 5.0);
+      ActualMB := TFile.GetSize(Photo.RawPath) / (1024.0 * 1024.0);
+      SizeOk := ActualMB <= (MaxMB + 0.05);
+      RecordCheck('RAW_FILE_SIZE', SizeOk, Format('Ukuran RAW %.2f MB (Maks: %.1f MB)', [ActualMB, MaxMB]));
     end;
 
     // 4. JPG existence & integrity
@@ -85,15 +91,25 @@ begin
       JpgOk := (Photo.Md5Jpg = '') or (CalcMd5 = Photo.Md5Jpg);
       RecordCheck('JPG_MD5_INTEGRITY', JpgOk, 'Integritas JPG cocok');
 
-      // 4b. Max file size validation
-      MaxMB := GetConfig.GetFloat('imaging', 'max_photo_size_mb', 10.0);
+      // 4b. JPG file size validation (min 5MB, maks 10MB)
       ActualMB := TFile.GetSize(Photo.JpgPath) / (1024.0 * 1024.0);
-      SizeOk := ActualMB <= (MaxMB + 0.05);
-      RecordCheck('MAX_FILE_SIZE', SizeOk, Format('Ukuran JPG %.2f MB (Maks: %.1f MB)', [ActualMB, MaxMB]));
+      SizeOk := (ActualMB >= (GetConfig.GetFloat('imaging', 'min_photo_size_mb', 5.0) - 0.05)) and
+                (ActualMB <= (GetConfig.GetFloat('imaging', 'max_photo_size_mb', 10.0) + 0.05));
+      RecordCheck('JPG_FILE_SIZE', SizeOk, Format('Ukuran JPG %.2f MB (Min: %.1f MB, Maks: %.1f MB)',
+        [ActualMB, GetConfig.GetFloat('imaging', 'min_photo_size_mb', 5.0), GetConfig.GetFloat('imaging', 'max_photo_size_mb', 10.0)]));
     end;
 
-    // 5. Thumbnail existence
-    RecordCheck('THUMBNAIL_EXISTS', (Photo.ThumbnailPath <> '') and TFile.Exists(Photo.ThumbnailPath), 'Thumbnail tersedia');
+    // 5. Thumbnail existence & file size (trump / thumb maks 4MB)
+    if (Photo.ThumbnailPath = '') or (not TFile.Exists(Photo.ThumbnailPath)) then
+      RecordCheck('THUMBNAIL_EXISTS', False, 'Thumbnail tidak ditemukan')
+    else
+    begin
+      RecordCheck('THUMBNAIL_EXISTS', True, 'Thumbnail tersedia');
+      MaxMB := GetConfig.GetFloat('imaging', 'max_thumbnail_size_mb', 4.0);
+      ActualMB := TFile.GetSize(Photo.ThumbnailPath) / (1024.0 * 1024.0);
+      SizeOk := ActualMB <= (MaxMB + 0.05);
+      RecordCheck('THUMBNAIL_FILE_SIZE', SizeOk, Format('Ukuran Thumbnail %.2f MB (Maks: %.1f MB)', [ActualMB, MaxMB]));
+    end;
 
     // 6. Metadata sidecar
     if Photo.JpgPath <> '' then

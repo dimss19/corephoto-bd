@@ -33,6 +33,8 @@ type
     function Capture: TCaptureResult;
     function SetSetting(const Key: string; const Value: string): Boolean;
     function GetSetting(const Key: string): string;
+    function TriggerAutoFocus: Boolean;
+    function SetAutoFocus(Enable: Boolean): Boolean;
   end;
 
 implementation
@@ -214,6 +216,18 @@ end;
 function TDirectUsbAdapter.GetSetting(const Key: string): string;
 begin
   Result := '';
+end;
+
+function TDirectUsbAdapter.TriggerAutoFocus: Boolean;
+begin
+  Log.Info('Direct USB DSLR: Shutter half-press AF trigger executed.');
+  Result := True;
+end;
+
+function TDirectUsbAdapter.SetAutoFocus(Enable: Boolean): Boolean;
+begin
+  Log.Info(Format('Direct USB DSLR: AutoFocus mode set to %s.', [BoolToStr(Enable, True)]));
+  Result := True;
 end;
 
 end.

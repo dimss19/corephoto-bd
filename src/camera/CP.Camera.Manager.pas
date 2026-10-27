@@ -34,6 +34,8 @@ type
     function Capture: TCaptureResult;
     function SetResolution(Width, Height: Integer; const Mode: string = 'custom'): Boolean;
     function TestWiFiConnection(const IP: string; Port: Integer = 15740): Boolean;
+    function TriggerAutoFocus: Boolean;
+    function SetAutoFocus(Enable: Boolean): Boolean;
 
     property ActiveAdapter: ICameraAdapter read FActiveAdapter;
   end;
@@ -201,6 +203,22 @@ end;
 function TCPCameraManager.TestWiFiConnection(const IP: string; Port: Integer): Boolean;
 begin
   Result := TWiFiDslrAdapter.TestIPReachability(IP, Port);
+end;
+
+function TCPCameraManager.TriggerAutoFocus: Boolean;
+begin
+  if FActiveAdapter <> nil then
+    Result := FActiveAdapter.TriggerAutoFocus
+  else
+    Result := False;
+end;
+
+function TCPCameraManager.SetAutoFocus(Enable: Boolean): Boolean;
+begin
+  if FActiveAdapter <> nil then
+    Result := FActiveAdapter.SetAutoFocus(Enable)
+  else
+    Result := False;
 end;
 
 end.

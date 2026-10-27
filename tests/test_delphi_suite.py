@@ -329,6 +329,82 @@ def test_settings_json():
     for section in ["app", "storage", "camera", "imaging", "validation", "transfer", "logging"]:
         assert section in data, f"Section '{section}' missing in settings.json"
 
+@test("Image size limits and properties synchronization in settings & validation runner")
+def test_size_limits_and_properties_sync():
+    cfg_path = os.path.join(BASE_DIR, "config", "settings.json")
+    with open(cfg_path, "r", encoding="utf-8-sig") as f:
+        cfg = json.load(f)
+
+    # 1. File size limits
+    imaging = cfg.get("imaging", {})
+    assert imaging.get("min_photo_size_mb") == 5.0, f"Expected min_photo_size_mb == 5.0, got {imaging.get('min_photo_size_mb')}"
+    assert imaging.get("max_photo_size_mb") == 10.0, f"Expected max_photo_size_mb == 10.0, got {imaging.get('max_photo_size_mb')}"
+    assert imaging.get("max_raw_size_mb") == 5.0, f"Expected max_raw_size_mb == 5.0, got {imaging.get('max_raw_size_mb')}"
+    assert imaging.get("max_thumbnail_size_mb") == 4.0, f"Expected max_thumbnail_size_mb == 4.0, got {imaging.get('max_thumbnail_size_mb')}"
+    assert imaging.get("dpi") == 72, f"Expected dpi == 72, got {imaging.get('dpi')}"
+
+    # 2. Camera hardware & properties synchronization
+    camera = cfg.get("camera", {})
+    assert camera.get("default_resolution") == [5184, 3456], f"Expected 5184x3456 resolution, got {camera.get('default_resolution')}"
+    assert camera.get("camera_maker") == "Canon", f"Expected camera_maker Canon, got {camera.get('camera_maker')}"
+    assert camera.get("camera_model") == "Canon EOS 60D", f"Expected camera_model Canon EOS 60D, got {camera.get('camera_model')}"
+
+    # 3. Check validation runner rules in CP.Validation.Runner.pas
+    runner_path = os.path.join(SRC_DIR, "validation", "CP.Validation.Runner.pas")
+    with open(runner_path, "r", encoding="utf-8", errors="ignore") as f:
+        runner_content = f.read()
+
+    assert "RAW_FILE_SIZE" in runner_content, "RAW_FILE_SIZE rule missing in validation runner"
+    assert "JPG_FILE_SIZE" in runner_content, "JPG_FILE_SIZE rule missing in validation runner"
+    assert "THUMBNAIL_FILE_SIZE" in runner_content, "THUMBNAIL_FILE_SIZE rule missing in validation runner"
+    assert "max_raw_size_mb" in runner_content, "max_raw_size_mb check missing in validation runner"
+    assert "min_photo_size_mb" in runner_content, "min_photo_size_mb check missing in validation runner"
+    assert "max_photo_size_mb" in runner_content, "max_photo_size_mb check missing in validation runner"
+    assert "max_thumbnail_size_mb" in runner_content, "max_thumbnail_size_mb check missing in validation runner"
+
+@test("EXIF metadata properties and size padding implementation")
+def test_exif_properties_and_size_implementation():
+    exif_pas = os.path.join(SRC_DIR, "imaging", "CP.Imaging.Exif.pas")
+    assert os.path.exists(exif_pas), "CP.Imaging.Exif.pas does not exist"
+    with open(exif_pas, "r", encoding="utf-8", errors="ignore") as f:
+        content = f.read()
+
+    assert "InjectExifAndEnforceFileSize" in content, "InjectExifAndEnforceFileSize missing in CP.Imaging.Exif.pas"
+    assert "BuildExifApp1Payload" in content, "BuildExifApp1Payload missing in CP.Imaging.Exif.pas"
+    assert "Canon EOS 60D" in content, "Canon EOS 60D default missing in CP.Imaging.Exif.pas"
+    assert "XPComment" in content or "0x9C9B" in content or "$9C9B" in content, "XPComment Windows property missing"
+
+@test("DSLR Autofocus hardware & software implementation across camera adapters and UI")
+def test_autofocus_dslr_support():
+    intf_path = os.path.join(BASE_DIR, "src", "camera", "CP.Camera.Intf.pas")
+    with open(intf_path, "r", encoding="utf-8") as f:
+        intf_code = f.read()
+    assert "TriggerAutoFocus" in intf_code, "TriggerAutoFocus missing in ICameraAdapter"
+    assert "SetAutoFocus" in intf_code, "SetAutoFocus missing in ICameraAdapter"
+
+    webcam_path = os.path.join(BASE_DIR, "src", "camera", "adapters", "CP.Camera.Webcam.pas")
+    with open(webcam_path, "r", encoding="utf-8") as f:
+        webcam_code = f.read()
+    assert "IAMCameraControl" in webcam_code, "IAMCameraControl missing in CP.Camera.Webcam.pas"
+    assert "CameraControl_Focus" in webcam_code, "CameraControl_Focus missing in CP.Camera.Webcam.pas"
+
+    directusb_path = os.path.join(BASE_DIR, "src", "camera", "adapters", "CP.Camera.DirectUsb.pas")
+    with open(directusb_path, "r", encoding="utf-8") as f:
+        usb_code = f.read()
+    assert "TriggerAutoFocus" in usb_code, "TriggerAutoFocus missing in CP.Camera.DirectUsb.pas"
+
+    dfm_path = os.path.join(BASE_DIR, "src", "ui", "CP.UI.Capture.dfm")
+    with open(dfm_path, "r", encoding="utf-8") as f:
+        dfm_code = f.read()
+    assert "BtnAutoFocus" in dfm_code, "BtnAutoFocus missing in CP.UI.Capture.dfm"
+
+    pas_path = os.path.join(BASE_DIR, "src", "ui", "CP.UI.Capture.pas")
+    with open(pas_path, "r", encoding="utf-8") as f:
+        pas_code = f.read()
+    assert "BtnAutoFocusClick" in pas_code, "BtnAutoFocusClick missing in CP.UI.Capture.pas"
+    assert "CmbFocusingChange" in pas_code, "CmbFocusingChange missing in CP.UI.Capture.pas"
+    assert "FAFLocked" in pas_code, "FAFLocked state missing in CP.UI.Capture.pas"
+
 
 # -------------------------------------------------------------
 # 6. Repository State
@@ -356,6 +432,9 @@ if __name__ == "__main__":
     test_crop_resolution_logic()
     test_sqlite_schema_in_db_manager()
     test_settings_json()
+    test_size_limits_and_properties_sync()
+    test_exif_properties_and_size_implementation()
+    test_autofocus_dslr_support()
     test_git_repo()
 
     print("\n" + "=" * 60)

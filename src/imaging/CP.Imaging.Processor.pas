@@ -6,7 +6,7 @@ uses
   Winapi.Windows, System.SysUtils, System.Classes, System.Math, System.IOUtils, System.JSON, Vcl.Graphics,
   Vcl.Imaging.jpeg,
   CP.DB.Models, CP.DB.Repositories, CP.Storage.Manager, CP.Imaging.Crop,
-  CP.Imaging.Raw, CP.Imaging.Thumbnail;
+  CP.Imaging.Raw, CP.Imaging.Thumbnail, CP.Imaging.Exif;
 
 type
   TCPImageProcessor = class
@@ -219,7 +219,9 @@ var
   DecodedBmp, CroppedBmp, SlatedBmp: TBitmap;
   Jpg: TJPEGImage;
   InitialQuality, CurrentQuality: Integer;
-  MaxSizeMB, MaxBytes, FileSize: Int64;
+  MaxBytes, FileSize: Int64;
+  MinSizeMB, MaxSizeMBDbl: Double;
+  ExifMeta: TExifMetadata;
   SafeCrop: TCropRegion;
   MetaObj: TJSONObject;
 begin
@@ -299,11 +301,12 @@ begin
           DisplayTime
         );
         try
-          // 6. Encode JPEG with max photo size enforcement
+          // 6. Encode JPEG with min/max photo size enforcement and EXIF metadata
           JpgFile := TPath.Combine(Paths.JpgDir, FilenameBase + '.jpg');
           InitialQuality := GetConfig.GetInteger('imaging', 'jpg_quality', 95);
-          MaxSizeMB := Round(GetConfig.GetFloat('imaging', 'max_photo_size_mb', 10.0));
-          MaxBytes := MaxSizeMB * 1024 * 1024;
+          MinSizeMB := GetConfig.GetFloat('imaging', 'min_photo_size_mb', 5.0);
+          MaxSizeMBDbl := GetConfig.GetFloat('imaging', 'max_photo_size_mb', 10.0);
+          MaxBytes := Round(MaxSizeMBDbl * 1024.0 * 1024.0);
 
           CurrentQuality := InitialQuality;
           Jpg := TJPEGImage.Create;
@@ -312,7 +315,7 @@ begin
             Jpg.Assign(SlatedBmp);
             Jpg.SaveToFile(JpgFile);
 
-            // Progressive reduction if size exceeds
+            // Progressive reduction if size exceeds MaxBytes
             FileSize := TFile.GetSize(JpgFile);
             while (FileSize > MaxBytes) and (CurrentQuality > 35) do
             begin
@@ -325,13 +328,32 @@ begin
             Jpg.Free;
           end;
 
+          // Inject EXIF Metadata matching Windows Properties (Canon EOS 60D, 72 DPI, Comments) & enforce min 5MB - max 10MB
+          ExifMeta.Make := GetConfig.GetString('camera', 'camera_maker', 'Canon');
+          ExifMeta.Model := GetConfig.GetString('camera', 'camera_model', 'Canon EOS 60D');
+          ExifMeta.Software := 'CorePhoto BD ' + GetConfig.GetString('app', 'version', '1.0.0');
+          ExifMeta.DateTime := Now;
+          ExifMeta.Comments := Format('Site: %s Hole: %s', [Session.Site, Tray.HoleId]);
+          if Trim(Tray.Comments) <> '' then
+            ExifMeta.Comments := ExifMeta.Comments + ' Comments: ' + Trim(Tray.Comments);
+          ExifMeta.XResolution := GetConfig.GetInteger('imaging', 'dpi', 72);
+          ExifMeta.YResolution := GetConfig.GetInteger('imaging', 'dpi', 72);
+          ExifMeta.ResolutionUnit := 2; // inches
+          ExifMeta.FNumberNum := 10;
+          ExifMeta.FNumberDen := 1;
+          ExifMeta.ExposureTimeNum := 1;
+          ExifMeta.ExposureTimeDen := 3;
+          ExifMeta.ISOSpeed := 200;
+
+          InjectExifAndEnforceFileSize(JpgFile, ExifMeta, MinSizeMB, MaxSizeMBDbl);
+
           Md5Jpg := TRawHandler.CalculateMD5(JpgFile);
           Result.JpgPath := JpgFile;
           Result.Md5Jpg := Md5Jpg;
 
-          // 7. Generate Thumbnail
+          // 7. Generate Thumbnail (1024 x 473, matching properties and max 4MB)
           ThumbFile := TPath.Combine(Paths.ThumbnailDir, FilenameBase + '_thumb.jpg');
-          TThumbnailGenerator.Generate(SlatedBmp, ThumbFile, 150, 100);
+          TThumbnailGenerator.Generate(SlatedBmp, ThumbFile, 1024, 473);
           Result.ThumbnailPath := ThumbFile;
 
           // 8. Write Sidecar JSON
@@ -356,7 +378,7 @@ begin
             MetaObj.AddPair('tray_width', TJSONNumber.Create(Tray.TrayWidth));
             MetaObj.AddPair('camera_model', CameraModel);
             MetaObj.AddPair('camera_serial', CameraSerial);
-            MetaObj.AddPair('max_size_mb', TJSONNumber.Create(MaxSizeMB));
+            MetaObj.AddPair('max_size_mb', TJSONNumber.Create(MaxSizeMBDbl));
             MetaObj.AddPair('processing_version', '1.0');
             MetaObj.AddPair('application_version', GetConfig.GetString('app', 'version', '1.0.0'));
 

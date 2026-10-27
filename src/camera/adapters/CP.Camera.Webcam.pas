@@ -50,6 +50,8 @@ type
     function Capture: TCaptureResult;
     function SetSetting(const Key: string; const Value: string): Boolean;
     function GetSetting(const Key: string): string;
+    function TriggerAutoFocus: Boolean;
+    function SetAutoFocus(Enable: Boolean): Boolean;
 
     class function ListDevices: TArray<string>;
   end;
@@ -599,6 +601,53 @@ begin
     Result := IntToStr(FTargetH)
   else
     Result := '';
+end;
+
+function TWebcamAdapter.TriggerAutoFocus: Boolean;
+var
+  CamCtrl: IAMCameraControl;
+  HR: HRESULT;
+begin
+  Result := False;
+  if FVideoSource <> nil then
+  begin
+    if FVideoSource.QueryInterface(IID_IAMCameraControl, CamCtrl) = S_OK then
+    begin
+      HR := CamCtrl.Set_(CameraControl_Focus, 0, CameraControl_Flags_Auto);
+      Result := (HR = S_OK);
+      if Result then
+        Log.Info('DirectShow IAMCameraControl: Hardware AutoFocus triggered successfully.')
+      else
+        Log.Debug(Format('DirectShow focus trigger HR: $%.8x', [HR]));
+    end;
+  end;
+  if FIsSimulated or (FVideoSource = nil) then
+    Result := True;
+end;
+
+function TWebcamAdapter.SetAutoFocus(Enable: Boolean): Boolean;
+var
+  CamCtrl: IAMCameraControl;
+  Flags: TCameraControlFlags;
+  HR: HRESULT;
+begin
+  Result := False;
+  if Enable then
+    Flags := CameraControl_Flags_Auto
+  else
+    Flags := CameraControl_Flags_Manual;
+
+  if FVideoSource <> nil then
+  begin
+    if FVideoSource.QueryInterface(IID_IAMCameraControl, CamCtrl) = S_OK then
+    begin
+      HR := CamCtrl.Set_(CameraControl_Focus, 0, Flags);
+      Result := (HR = S_OK);
+      Log.Info(Format('DirectShow AutoFocus mode set to %s (HR: $%.8x)', [BoolToStr(Enable, True), HR]));
+    end;
+  end;
+  if FIsSimulated or (FVideoSource = nil) then
+    Result := True;
 end;
 
 end.

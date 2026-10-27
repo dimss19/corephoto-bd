@@ -845,6 +845,7 @@ object CaptureView: TCaptureView
             'One-Shot'
             'AI Focus'
             'Manual')
+          OnChange = CmbFocusingChange
         end
         object LblIso: TLabel
           Left = 8
@@ -977,6 +978,22 @@ object CaptureView: TCaptureView
         ParentFont = False
         TabOrder = 1
         OnClick = BtnCropToggleClick
+      end
+      object BtnAutoFocus: TButton
+        Left = 528
+        Top = 5
+        Width = 110
+        Height = 28
+        Anchors = [akTop, akRight]
+        Caption = 'Auto Focus (AF)'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Segoe UI'
+        Font.Style = [fsBold]
+        ParentFont = False
+        TabOrder = 2
+        OnClick = BtnAutoFocusClick
       end
     end
     object PaintLiveView: TPaintBox

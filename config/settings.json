@@ -26,18 +26,28 @@
     ],
     "fps": 30,
     "device_id": "0",
+    "camera_maker": "Canon",
+    "camera_model": "Canon EOS 60D",
+    "f_stop": "f/10",
+    "exposure_time": "1/3 sec.",
+    "iso_speed": "ISO-200",
     "resolution_mode": "1080p"
   },
   "imaging": {
-    "crop_width": 300,
-    "crop_height": 200,
+    "crop_width": 4276,
+    "crop_height": 1998,
     "jpg_quality": 95,
+    "min_photo_size_mb": 5.0,
+    "max_photo_size_mb": 10.0,
+    "max_raw_size_mb": 5.0,
+    "max_thumbnail_size_mb": 4.0,
     "thumbnail_size": [
-      150,
-      100
+      1024,
+      473
     ],
-    "preserve_raw": true,
-    "max_photo_size_mb": "10"
+    "dpi": 72,
+    "bit_depth": 24,
+    "preserve_raw": true
   },
   "validation": {
     "min_interval_diff": 0.0,
