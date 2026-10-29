@@ -175,8 +175,61 @@ var
   Bmp: TBitmap;
   Png: TPngImage;
   MS: TMemoryStream;
+  I: Integer;
+  Cmd, Item, ImgFile: OleVariant;
+  RawBytes: TBytes;
+  WiaCaptured: Boolean;
 begin
   FState := csCapturing;
+  WiaCaptured := False;
+
+  // 1. Attempt genuine WIA PTP capture if physical DSLR is connected
+  try
+    if not VarIsEmpty(FWiaDevice) and not VarIsNull(FWiaDevice) then
+    begin
+      for I := 1 to FWiaDevice.Commands.Count do
+      begin
+        Cmd := FWiaDevice.Commands.Item(I);
+        if SameText(VarToStr(Cmd.CommandID), '{AF933CAC-ACAD-11D2-A093-00C04F72DC3C}') then
+        begin
+          Item := FWiaDevice.ExecuteCommand(Cmd.CommandID);
+          if not VarIsEmpty(Item) and not VarIsNull(Item) then
+          begin
+            ImgFile := Item.Transfer;
+            if not VarIsEmpty(ImgFile) and not VarIsNull(ImgFile) then
+            begin
+              RawBytes := ImgFile.FileData.BinaryData;
+              if Length(RawBytes) > 0 then
+              begin
+                Result.RawBytes := RawBytes;
+                Result.Format := LowerCase(VarToStr(ImgFile.FileExtension));
+                if Result.Format = '' then Result.Format := 'jpg';
+                Result.Width := StrToIntDef(VarToStr(ImgFile.Width), 5184);
+                Result.Height := StrToIntDef(VarToStr(ImgFile.Height), 3456);
+                Result.CameraModel := FInfo.Model;
+                Result.CameraSerial := FInfo.SerialNumber;
+                Result.PreviewBmp := nil;
+                WiaCaptured := True;
+                Log.Info('WIA Physical DSLR shutter capture succeeded.');
+                Break;
+              end;
+            end;
+          end;
+        end;
+      end;
+    end;
+  except
+    on E: Exception do
+      Log.Warn('WIA physical capture attempt: ' + E.Message);
+  end;
+
+  if WiaCaptured then
+  begin
+    FState := csReady;
+    Exit;
+  end;
+
+  // 2. Fallback standby capture
   Bmp := GenerateStandbyFrame;
   try
     Png := TPngImage.Create;

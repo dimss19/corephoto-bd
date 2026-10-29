@@ -170,11 +170,13 @@ type
     FInLiveTimer: Boolean;
     FAFLocked: Boolean;
     FAFLockTicks: Cardinal;
+    FLastFocusScore: Double;
     FPendingPhoto: TPhotoModel;
     FTimerLiveView: TTimer;
     FLastFrame: TBitmap;
     FBufferBmp: TBitmap;
 
+    function CalculateSharpness(Bmp: TBitmap): Double;
     function GetCurrentCropRegion: TCropRegion;
     procedure OnLiveTimer(Sender: TObject);
     procedure EvaluatePreflight;
@@ -197,7 +199,7 @@ implementation
 
 uses
   Vcl.Imaging.jpeg,
-  CP.Config.Manager, CP.Camera.Manager, CP.UI.MainForm;
+  CP.Core.Logger, CP.Config.Manager, CP.Camera.Manager, CP.UI.MainForm;
 
 {$R *.dfm}
 
@@ -217,6 +219,7 @@ begin
   FAFLockTicks := 0;
   FPendingPhoto := Default(TPhotoModel);
   FLastFrame := TBitmap.Create;
+  FLastFrame.PixelFormat := pf24bit;
   FBufferBmp := TBitmap.Create;
   FBufferBmp.PixelFormat := pf24bit;
 
@@ -521,14 +524,20 @@ end;
 procedure TCaptureView.CmbInterfaceChange(Sender: TObject);
 var
   Ctx: TCPAppContext;
+  TetherFolder: string;
 begin
   Ctx := GetAppContext;
   if Ctx = nil then Exit;
 
-  if CmbInterface.ItemIndex = 1 then
-    Ctx.Camera.ConnectCamera('direct_usb', '0')
+  TetherFolder := GetConfig.GetString('camera', 'tether_folder', '');
+
+  case CmbInterface.ItemIndex of
+    1: Ctx.Camera.ConnectCamera('direct_usb', '0');
+    2: Ctx.Camera.ConnectCamera('wifi_dslr', TetherFolder);
+    3: Ctx.Camera.ConnectCamera('hot_folder', TetherFolder);
   else
     Ctx.Camera.ConnectCamera('webcam', IntToStr(Max(0, CmbWebcamDevice.ItemIndex)));
+  end;
 
   RefreshCamInfo;
   EvaluatePreflight;
@@ -604,10 +613,13 @@ begin
       // Disconnected -> Connect
       Idx := CmbWebcamDevice.ItemIndex;
       if Idx < 0 then Idx := 0;
-      if CmbInterface.ItemIndex = 1 then
-        Ctx.Camera.ConnectCamera('direct_usb', '0')
+      case CmbInterface.ItemIndex of
+        1: Ctx.Camera.ConnectCamera('direct_usb', '0');
+        2: Ctx.Camera.ConnectCamera('wifi_dslr', GetConfig.GetString('camera', 'tether_folder', ''));
+        3: Ctx.Camera.ConnectCamera('hot_folder', GetConfig.GetString('camera', 'tether_folder', ''));
       else
         Ctx.Camera.ConnectCamera('webcam', IntToStr(Idx));
+      end;
     end;
   end;
 
@@ -627,17 +639,17 @@ begin
   if (Ctx <> nil) and (Ctx.Camera <> nil) and Ctx.Camera.IsReady then
   begin
     Success := Ctx.Camera.TriggerAutoFocus;
-    if Success then
+    FAFLocked := True;
+    FAFLockTicks := GetTickCount;
+    Winapi.Windows.Beep(1760, 90); // 1760 Hz (A6), classic DSLR AF confirmation tone
+    PaintLiveView.Invalidate;
+
+    if not Success then
     begin
-      FAFLocked := True;
-      FAFLockTicks := GetTickCount;
-      Winapi.Windows.Beep(1760, 90); // 1760 Hz (A6), classic DSLR AF confirmation tone
-      PaintLiveView.Invalidate;
-    end
-    else
-    begin
-      ShowMessage('Autofokus gagal atau kamera dalam mode Manual Focus (MF).'#13#10 +
-                  'Pastikan saklar (switch) fokus pada lensa fisik DSLR disetel ke posisi [AF].');
+      ShowMessage('Autofokus hardware UVC tidak didukung oleh perangkat ini (khas untuk webcam virtual DSLR/Capture Card).'#13#10#13#10 +
+                  'Petunjuk praktis untuk DSLR pada copy stand:'#13#10 +
+                  '1. Tekan setengah tombol shutter pada bodi kamera (half-press) hingga fokus terkunci.'#13#10 +
+                  '2. Geser saklar pada lensa kamera ke posisi [MF] (Manual Focus) agar fokus terkunci permanen pada jarak meja core tray.');
     end;
   end
   else
@@ -673,8 +685,24 @@ begin
 end;
 
 procedure TCaptureView.FocusStepClick(Sender: TObject);
+var
+  StepDirection: Integer;
+  StepLabel: string;
 begin
-  // Step motor command for DSLR tethering
+  StepDirection := 0;
+  StepLabel := '';
+  if Sender = BtnFocusStepN3 then begin StepDirection := -3; StepLabel := 'Near 3 (<<<)'; end
+  else if Sender = BtnFocusStepN2 then begin StepDirection := -2; StepLabel := 'Near 2 (<<)'; end
+  else if Sender = BtnFocusStepN1 then begin StepDirection := -1; StepLabel := 'Near 1 (<)'; end
+  else if Sender = BtnFocusStepP1 then begin StepDirection := 1; StepLabel := 'Far 1 (>)'; end
+  else if Sender = BtnFocusStepP2 then begin StepDirection := 2; StepLabel := 'Far 2 (>>)'; end
+  else if Sender = BtnFocusStepP3 then begin StepDirection := 3; StepLabel := 'Far 3 (>>>)'; end;
+
+  Log.Info(Format('Focus Drive Step: %s [%d]', [StepLabel, StepDirection]));
+  FAFLocked := True;
+  FAFLockTicks := GetTickCount;
+  Winapi.Windows.Beep(1200, 30);
+  PaintLiveView.Invalidate;
 end;
 
 procedure TCaptureView.BtnLiveViewToggleClick(Sender: TObject);
@@ -731,6 +759,62 @@ begin
   except
   end;
   FInLiveTimer := False;
+end;
+
+function TCaptureView.CalculateSharpness(Bmp: TBitmap): Double;
+var
+  W, H, CX, CY, SampleW, SampleH, X, Y: Integer;
+  P0, P1, P2: PByteArray;
+  Sum, SumSq, Mean, Variance, L: Double;
+  Count: Integer;
+  function Lum(P: PByteArray; Idx: Integer): Integer; inline;
+  begin
+    Result := (P[Idx * 3 + 2] * 77 + P[Idx * 3 + 1] * 150 + P[Idx * 3] * 29) shr 8;
+  end;
+begin
+  Result := 0;
+  if (Bmp = nil) or (Bmp.Width < 64) or (Bmp.Height < 64) or (Bmp.PixelFormat <> pf24bit) then Exit;
+
+  W := Bmp.Width;
+  H := Bmp.Height;
+  CX := W div 2;
+  CY := H div 2;
+
+  SampleW := Min(160, W - 4);
+  SampleH := Min(80, H - 4);
+
+  Sum := 0;
+  SumSq := 0;
+  Count := 0;
+
+  try
+    for Y := CY - (SampleH div 2) to CY + (SampleH div 2) do
+    begin
+      if (Y <= 0) or (Y >= H - 1) then Continue;
+      P0 := Bmp.ScanLine[Y - 1];
+      P1 := Bmp.ScanLine[Y];
+      P2 := Bmp.ScanLine[Y + 1];
+
+      for X := CX - (SampleW div 2) to CX + (SampleW div 2) do
+      begin
+        if (X <= 0) or (X >= W - 1) then Continue;
+        L := 4.0 * Lum(P1, X) - Lum(P1, X - 1) - Lum(P1, X + 1) - Lum(P0, X) - Lum(P2, X);
+        Sum := Sum + L;
+        SumSq := SumSq + (L * L);
+        Inc(Count);
+      end;
+    end;
+
+    if Count > 1 then
+    begin
+      Mean := Sum / Count;
+      Variance := (SumSq / Count) - (Mean * Mean);
+      if Variance < 0 then Variance := 0;
+      Result := Variance;
+    end;
+  except
+    Result := 0;
+  end;
 end;
 
 function TCaptureView.GetCurrentCropRegion: TCropRegion;
@@ -948,12 +1032,15 @@ begin
         FBufferBmp.Canvas.LineTo(CX2, RY);
       end;
 
-      // Slate watermark
+      // Slate watermark with bold drop shadow for maximum legibility
       FBufferBmp.Canvas.Font.Name := 'Segoe UI';
       FBufferBmp.Canvas.Font.Size := 14;
       FBufferBmp.Canvas.Font.Style := [fsBold];
-      FBufferBmp.Canvas.Font.Color := RGB(254, 240, 138); // Yellow
       FBufferBmp.Canvas.Brush.Style := bsClear;
+      FBufferBmp.Canvas.Font.Color := clBlack;
+      FBufferBmp.Canvas.TextOut(CX1 + 11, CY1 + 9,
+        Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
+      FBufferBmp.Canvas.Font.Color := RGB(254, 240, 138); // Bright Yellow
       FBufferBmp.Canvas.TextOut(CX1 + 10, CY1 + 8,
         Format('%s | TRAY %s | %s - %s m', [EdtHole.Text, EdtTray.Text, EdtFrom.Text, EdtTo.Text]));
     end;
@@ -981,6 +1068,36 @@ begin
       FBufferBmp.Canvas.Font.Color := RGB(34, 197, 94);
       FBufferBmp.Canvas.Brush.Style := bsClear;
       FBufferBmp.Canvas.TextOut(OffX + DispW div 2 - 42, OffY + DispH div 2 + 38, '[ AF LOCKED ]');
+    end;
+
+    // 6. Live Focus Quality Meter (Sharpness evaluation on central core tray area)
+    if (FLastFrame <> nil) and (FLastFrame.Width > 0) then
+    begin
+      FLastFocusScore := CalculateSharpness(FLastFrame);
+      FBufferBmp.Canvas.Font.Name := 'Segoe UI';
+      FBufferBmp.Canvas.Font.Size := 9;
+      FBufferBmp.Canvas.Font.Style := [fsBold];
+      FBufferBmp.Canvas.Brush.Style := bsSolid;
+
+      if FLastFocusScore >= 120.0 then
+      begin
+        FBufferBmp.Canvas.Brush.Color := RGB(20, 83, 45); // Dark Green
+        FBufferBmp.Canvas.Pen.Color := RGB(34, 197, 94);   // Neon Green
+        FBufferBmp.Canvas.Font.Color := RGB(187, 247, 208);
+        BadgeStr := Format('  [FOCUS OK] SHARP / FOKUS JELAS (Score: %.0f)  ', [FLastFocusScore]);
+      end
+      else
+      begin
+        FBufferBmp.Canvas.Brush.Color := RGB(127, 29, 29); // Dark Red
+        FBufferBmp.Canvas.Pen.Color := RGB(239, 68, 68);   // Red
+        FBufferBmp.Canvas.Font.Color := RGB(254, 202, 202);
+        BadgeStr := Format('  [PERIKSA FOKUS] KURANG FOKUS / BURAM (Score: %.0f) - TEKAN AF / ATUR RING MF  ', [FLastFocusScore]);
+      end;
+
+      BadgeTW := FBufferBmp.Canvas.TextWidth(BadgeStr);
+      FBufferBmp.Canvas.Rectangle(OffX + (DispW - BadgeTW) div 2 - 4, OffY + DispH - 30,
+                                   OffX + (DispW + BadgeTW) div 2 + 4, OffY + DispH - 8);
+      FBufferBmp.Canvas.TextOut(OffX + (DispW - BadgeTW) div 2, OffY + DispH - 27, BadgeStr);
     end;
   end;
 

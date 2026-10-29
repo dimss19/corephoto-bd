@@ -79,14 +79,16 @@ begin
   Result.Canvas.Draw(0, 0, Img);
 
   Result.Canvas.Font.Name := 'Segoe UI';
+  Result.Canvas.Font.Style := [fsBold];
+  Result.Canvas.Font.Color := clBlack;
   Result.Canvas.Brush.Style := bsClear;
 
   // 1. Initial banner calculation (default 8% of image height)
   BannerH := Round(H * 0.08);
-  if BannerH < 24 then BannerH := 24;
+  if BannerH < 26 then BannerH := 26;
 
-  FontSize := Round(BannerH * 0.42);
-  if FontSize < 8 then FontSize := 8;
+  FontSize := Round(BannerH * 0.44);
+  if FontSize < 9 then FontSize := 9;
   Result.Canvas.Font.Size := FontSize;
 
   LeftW := Result.Canvas.TextWidth(LeftText);
@@ -94,10 +96,10 @@ begin
 
   // 2. Check if text fits on a single line with safe margins
   TwoLines := False;
-  if LeftW + TextW + 24 > W then
+  if LeftW + TextW + 28 > W then
   begin
     // Try reducing font size down to 8pt
-    while (FontSize > 8) and (LeftW + TextW + 24 > W) do
+    while (FontSize > 8) and (LeftW + TextW + 28 > W) do
     begin
       Dec(FontSize);
       Result.Canvas.Font.Size := FontSize;
@@ -106,45 +108,46 @@ begin
     end;
 
     // If still too wide for single line, switch to 2-line layout
-    if LeftW + TextW + 20 > W then
+    if LeftW + TextW + 24 > W then
     begin
       TwoLines := True;
-      BannerH := Max(Round(H * 0.12), 44);
+      BannerH := Max(Round(H * 0.12), 48);
       FontSize := Round(BannerH * 0.28);
       if FontSize < 8 then FontSize := 8;
       Result.Canvas.Font.Size := FontSize;
     end;
   end;
 
-  // 3. Draw white background rectangle with light gray separator
+  // 3. Draw white background rectangle with crisp separator line
   Result.Canvas.Brush.Color := clWhite;
   Result.Canvas.Brush.Style := bsSolid;
-  Result.Canvas.Pen.Color := RGB(210, 215, 220);
+  Result.Canvas.Pen.Color := RGB(180, 185, 190);
   Result.Canvas.Pen.Width := 1;
   Result.Canvas.Rectangle(0, H - BannerH, W, H);
   Result.Canvas.MoveTo(0, H - BannerH);
   Result.Canvas.LineTo(W, H - BannerH);
 
-  Result.Canvas.Font.Color := RGB(15, 20, 25);
+  Result.Canvas.Font.Color := clBlack;
+  Result.Canvas.Font.Style := [fsBold];
   Result.Canvas.Brush.Style := bsClear;
 
   if TwoLines then
   begin
     // Clean two-line layout: Line 1 = geological info, Line 2 = operator & time
     YPos := H - BannerH + 4;
-    Result.Canvas.TextOut(8, YPos, LeftText);
+    Result.Canvas.TextOut(12, YPos, LeftText);
     YPos := YPos + FontSize + 6;
-    Result.Canvas.TextOut(8, YPos, RightText);
+    Result.Canvas.TextOut(12, YPos, RightText);
   end
   else
   begin
     // Single-line layout: LeftText on left, RightText on right
     YPos := H - BannerH + (BannerH - FontSize) div 2;
-    Result.Canvas.TextOut(8, YPos, LeftText);
+    Result.Canvas.TextOut(12, YPos, LeftText);
 
-    XRight := W - Result.Canvas.TextWidth(RightText) - 8;
-    if XRight < LeftW + 12 then
-      XRight := LeftW + 12;
+    XRight := W - Result.Canvas.TextWidth(RightText) - 12;
+    if XRight < LeftW + 16 then
+      XRight := LeftW + 16;
     Result.Canvas.TextOut(XRight, YPos, RightText);
   end;
 end;

@@ -81,7 +81,6 @@ var
   Ifd0Size, SubIfdOffset, SubIfdSize, DataOffset: Cardinal;
   OffMake, OffModel, OffXRes, OffYRes, OffSoft, OffDate, OffXP: Cardinal;
   OffExpTime, OffFNum, OffOrigDate: Cardinal;
-  PosData: Cardinal;
   procedure WriteTag(Tag, Typ: Word; Count, ValOrOffset: Cardinal);
   begin
     WriteWordLE(MS, Tag);

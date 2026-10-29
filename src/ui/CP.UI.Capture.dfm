@@ -587,8 +587,10 @@ object CaptureView: TCaptureView
           Text = 'Physical USB Webcam'
           OnChange = CmbInterfaceChange
           Items.Strings = (
-            'Physical USB Webcam'
-            'Direct USB DSLR (Cable)')
+            'Physical USB Webcam / Capture Card (DirectShow)'
+            'Direct USB DSLR (WIA / PTP Cable)'
+            'Wi-Fi DSLR Wireless Tethering'
+            'Hot-Folder Tethering Watcher (EOS Utility / Nikon NX)')
         end
         object LblWebcamDev: TLabel
           Left = 8

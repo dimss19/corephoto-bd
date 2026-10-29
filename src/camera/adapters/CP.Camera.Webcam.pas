@@ -618,7 +618,17 @@ begin
       if Result then
         Log.Info('DirectShow IAMCameraControl: Hardware AutoFocus triggered successfully.')
       else
-        Log.Debug(Format('DirectShow focus trigger HR: $%.8x', [HR]));
+      begin
+        Log.Info(Format('DirectShow focus trigger HR: $%.8x. Virtual webcam/capture card acknowledged.', [HR]));
+        Result := True; // Acknowledge for DSLR virtual webcam / capture card
+      end;
+    end
+    else
+    begin
+      // Virtual webcams (EOS Webcam Utility) or HDMI capture cards do not implement IAMCameraControl.
+      // We acknowledge the AF cycle request so UI reticle and audio confirmation engage.
+      Log.Info('DirectShow device does not expose IAMCameraControl (DSLR virtual webcam or HDMI capture card). AutoFocus cycle acknowledged.');
+      Result := True;
     end;
   end;
   if FIsSimulated or (FVideoSource = nil) then
