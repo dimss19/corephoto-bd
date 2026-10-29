@@ -101,7 +101,7 @@ begin
   begin
     Sec := TJSONObject.Create;
     Sec.AddPair('name', 'Core Photo');
-    Sec.AddPair('version', '1.0.0');
+    Sec.AddPair('version', '1.0.1');
     Sec.AddPair('theme', 'dark');
     Sec.AddPair('color_theme', 'blue');
     Sec.AddPair('language', 'id');

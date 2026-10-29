@@ -9,7 +9,7 @@ type
   TExifMetadata = record
     Make: string;             // e.g. 'Canon'
     Model: string;            // e.g. 'Canon EOS 60D'
-    Software: string;         // e.g. 'CorePhoto BD 1.0.0'
+    Software: string;         // e.g. 'CorePhoto BD 1.0.1'
     DateTime: TDateTime;      // Date taken
     Comments: string;         // e.g. 'Site: GOSOWONG Hole: GND140'
     XResolution: Cardinal;    // 72
@@ -41,7 +41,7 @@ class function TExifMetadata.DefaultCanon60D: TExifMetadata;
 begin
   Result.Make := 'Canon';
   Result.Model := 'Canon EOS 60D';
-  Result.Software := 'CorePhoto BD 1.0.0';
+  Result.Software := 'CorePhoto BD 1.0.1';
   Result.DateTime := Now;
   Result.Comments := 'Site: GOSOWONG Hole: GND140';
   Result.XResolution := 72;

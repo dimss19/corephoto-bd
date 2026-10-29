@@ -334,7 +334,7 @@ begin
           // Inject EXIF Metadata matching Windows Properties (Canon EOS 60D, 72 DPI, Comments) & enforce min 5MB - max 10MB
           ExifMeta.Make := GetConfig.GetString('camera', 'camera_maker', 'Canon');
           ExifMeta.Model := GetConfig.GetString('camera', 'camera_model', 'Canon EOS 60D');
-          ExifMeta.Software := 'CorePhoto BD ' + GetConfig.GetString('app', 'version', '1.0.0');
+          ExifMeta.Software := 'CorePhoto BD ' + GetConfig.GetString('app', 'version', '1.0.1');
           ExifMeta.DateTime := Now;
           ExifMeta.Comments := Format('Site: %s Hole: %s', [Session.Site, Tray.HoleId]);
           if Trim(Tray.Comments) <> '' then
@@ -383,7 +383,7 @@ begin
             MetaObj.AddPair('camera_serial', CameraSerial);
             MetaObj.AddPair('max_size_mb', TJSONNumber.Create(MaxSizeMBDbl));
             MetaObj.AddPair('processing_version', '1.0');
-            MetaObj.AddPair('application_version', GetConfig.GetString('app', 'version', '1.0.0'));
+            MetaObj.AddPair('application_version', GetConfig.GetString('app', 'version', '1.0.1'));
 
             MetaFile := TPath.Combine(Paths.JpgDir, FilenameBase + '.json');
             TFile.WriteAllText(MetaFile, MetaObj.Format(2), TEncoding.UTF8);
