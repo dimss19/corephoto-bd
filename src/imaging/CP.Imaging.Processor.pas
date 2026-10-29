@@ -58,7 +58,7 @@ function TCPImageProcessor.AddMetadataSlateBanner(
   const OperatorName, TimestampStr: string
 ): TBitmap;
 var
-  W, H, BannerH, FontSize, YPos, XRight, TextW, LeftW: Integer;
+  W, H, BannerH, FontSize, YPos, XRight, TextW, LeftW, TextH: Integer;
   LeftText, RightText, OpText: string;
   TwoLines: Boolean;
 begin
@@ -78,71 +78,57 @@ begin
   Result.SetSize(W, H);
   Result.Canvas.Draw(0, 0, Img);
 
+  // Slim / regular typography (font size 10, non-bold as requested)
   Result.Canvas.Font.Name := 'Segoe UI';
-  Result.Canvas.Font.Style := [fsBold];
+  Result.Canvas.Font.Style := [];
   Result.Canvas.Font.Color := clBlack;
   Result.Canvas.Brush.Style := bsClear;
 
-  // 1. Initial banner calculation (default 8% of image height)
-  BannerH := Round(H * 0.08);
-  if BannerH < 26 then BannerH := 26;
-
-  FontSize := Round(BannerH * 0.44);
-  if FontSize < 9 then FontSize := 9;
+  FontSize := GetConfig.GetInteger('imaging', 'banner_font_size', 10);
+  if FontSize < 8 then FontSize := 8;
   Result.Canvas.Font.Size := FontSize;
+
+  TextH := Result.Canvas.TextHeight(LeftText);
+  if TextH < 13 then TextH := 13;
+
+  // Banner height compact - white area minimized ("kecilkan putih putih ini")
+  BannerH := TextH + 8;
+  if BannerH < 22 then BannerH := 22;
 
   LeftW := Result.Canvas.TextWidth(LeftText);
   TextW := Result.Canvas.TextWidth(RightText);
 
-  // 2. Check if text fits on a single line with safe margins
+  // Check if text fits on a single line
   TwoLines := False;
   if LeftW + TextW + 28 > W then
   begin
-    // Try reducing font size down to 8pt
-    while (FontSize > 8) and (LeftW + TextW + 28 > W) do
-    begin
-      Dec(FontSize);
-      Result.Canvas.Font.Size := FontSize;
-      LeftW := Result.Canvas.TextWidth(LeftText);
-      TextW := Result.Canvas.TextWidth(RightText);
-    end;
-
-    // If still too wide for single line, switch to 2-line layout
-    if LeftW + TextW + 24 > W then
-    begin
-      TwoLines := True;
-      BannerH := Max(Round(H * 0.12), 48);
-      FontSize := Round(BannerH * 0.28);
-      if FontSize < 8 then FontSize := 8;
-      Result.Canvas.Font.Size := FontSize;
-    end;
+    TwoLines := True;
+    BannerH := (TextH * 2) + 10;
   end;
 
-  // 3. Draw white background rectangle with crisp separator line
+  // Draw white background rectangle with crisp separator line
   Result.Canvas.Brush.Color := clWhite;
   Result.Canvas.Brush.Style := bsSolid;
-  Result.Canvas.Pen.Color := RGB(180, 185, 190);
+  Result.Canvas.Pen.Color := RGB(200, 205, 210);
   Result.Canvas.Pen.Width := 1;
   Result.Canvas.Rectangle(0, H - BannerH, W, H);
   Result.Canvas.MoveTo(0, H - BannerH);
   Result.Canvas.LineTo(W, H - BannerH);
 
   Result.Canvas.Font.Color := clBlack;
-  Result.Canvas.Font.Style := [fsBold];
+  Result.Canvas.Font.Style := []; // Slim / regular font
   Result.Canvas.Brush.Style := bsClear;
 
   if TwoLines then
   begin
-    // Clean two-line layout: Line 1 = geological info, Line 2 = operator & time
-    YPos := H - BannerH + 4;
+    YPos := H - BannerH + 3;
     Result.Canvas.TextOut(12, YPos, LeftText);
-    YPos := YPos + FontSize + 6;
+    YPos := YPos + TextH + 2;
     Result.Canvas.TextOut(12, YPos, RightText);
   end
   else
   begin
-    // Single-line layout: LeftText on left, RightText on right
-    YPos := H - BannerH + (BannerH - FontSize) div 2;
+    YPos := H - BannerH + (BannerH - TextH) div 2;
     Result.Canvas.TextOut(12, YPos, LeftText);
 
     XRight := W - Result.Canvas.TextWidth(RightText) - 12;

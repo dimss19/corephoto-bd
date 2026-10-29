@@ -12,7 +12,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Config)'=='Base'">
     <DCC_DcuOutput>.\dcu</DCC_DcuOutput>
-    <DCC_ExeOutput>.\bin</DCC_ExeOutput>
+    <DCC_ExeOutput>.</DCC_ExeOutput>
     <DCC_UnitSearchPath>src\core;src\config;src\storage;src\database;src\camera;src\camera\adapters;src\imaging;src\validation;src\diagnostics;src\ui;src\ui\controls;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
     <DCC_E>false</DCC_E>
     <DCC_N>false</DCC_N>

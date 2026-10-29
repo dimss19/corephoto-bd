@@ -37,6 +37,7 @@
     "crop_width": 4276,
     "crop_height": 1998,
     "jpg_quality": 95,
+    "banner_font_size": 10,
     "min_photo_size_mb": 5.0,
     "max_photo_size_mb": 10.0,
     "max_raw_size_mb": 5.0,
